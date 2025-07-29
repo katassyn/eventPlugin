@@ -17,11 +17,12 @@ import java.util.*;
 
 public class PlayerProgressGUI implements Listener {
     private static final List<Integer> PATH_SLOTS = List.of(
-            1, 3, 4, 5, 7,
-            10, 12, 14, 16,
-            19, 21, 23, 25,
-            28, 30, 32, 34,
-            37, 38, 39, 41, 42, 43
+            1, 3, 4, 5, 6,
+            10, 12, 14, 15,
+            19, 21, 23, 24, 26,
+            29, 31, 32, 34,
+            38, 40, 42, 44,
+            48, 51
     );
 
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
@@ -59,7 +60,9 @@ public class PlayerProgressGUI implements Listener {
         int progress = eventManager.getProgress(player);
         int max = eventManager.getMaxProgress();
         Inventory inv = Bukkit.createInventory(null, 54,
-                eventManager.getName() + " - " + progress + "/" + max);
+                eventManager.getName() + " - " + progress + "/" + max + " - " +
+                        TimeUtil.formatDuration(eventManager.getTimeRemaining()));
+
 
         double perSlot = (double) max / PATH_SLOTS.size();
         int filled = (int) Math.floor(progress / perSlot);
@@ -68,12 +71,10 @@ public class PlayerProgressGUI implements Listener {
         ItemStack emptyItem = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
         ItemMeta mFilled = filledItem.getItemMeta();
         ItemMeta mEmpty = emptyItem.getItemMeta();
-        String loreLine = "Progress: §e" + progress + "§7 / §e" + max;
-        mFilled.setDisplayName("§eProgress");
-        mEmpty.setDisplayName("§fProgress");
+        String numbers = "§e" + progress + "§7 / §e" + max;
+        mFilled.setDisplayName("§eProgress: " + numbers);
+        mEmpty.setDisplayName("§fProgress: " + numbers);
 
-        mFilled.setLore(Collections.singletonList(loreLine));
-        mEmpty.setLore(Collections.singletonList(loreLine));
         filledItem.setItemMeta(mFilled);
         emptyItem.setItemMeta(mEmpty);
 
@@ -130,7 +131,6 @@ public class PlayerProgressGUI implements Listener {
             inv.setItem(slot, rewardItem);
             session.rewardSlots.put(slot, reward.requiredProgress());
         }
-
 
         open.put(player.getUniqueId(), session);
         player.openInventory(inv);
