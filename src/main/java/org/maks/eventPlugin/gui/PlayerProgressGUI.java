@@ -6,129 +6,60 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.maks.eventPlugin.eventsystem.EventManager;
-
-import java.util.*;
-
-public class PlayerProgressGUI implements Listener {
-    private static final String[] LAYOUT_MAP = {
-            "B Y B Y Y L L B R",
-            "R Y R Y B L L B R",
-            "B Y B Y B L L B L",
-            "R B Y B Y L B L R",
-            "B R Y R Y B L B L",
-            "R B B Y B B Y B R"
-    };
-
-    private static final List<Integer> PATH_SLOTS = new ArrayList<>();
-    private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
-    private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
-
-    static {
-        List<String> rows = Arrays.asList(LAYOUT_MAP);
-        for (int r = 0; r < rows.size(); r++) {
-            String[] tokens = rows.get(r).split(" ");
-            for (int c = 0; c < tokens.length; c++) {
-                char ch = tokens[c].charAt(0);
-                int slot = r * 9 + c;
-                if (ch == 'Y' || ch == 'L') {
-                    PATH_SLOTS.add(slot);
-                }
-                if (ch == 'R') {
-                    REWARD_SLOTS.add(slot);
-                }
-            }
-        }
-        for (int i = 0; i < PATH_SLOTS.size(); i++) {
-            int slot = PATH_SLOTS.get(i);
-            int row = slot / 9;
-            int col = slot % 9;
-            for (int rSlot : REWARD_SLOTS) {
-                int rr = rSlot / 9;
-                int rc = rSlot % 9;
-                if (Math.abs(row - rr) + Math.abs(col - rc) == 1) {
-                    PATH_TO_REWARD.computeIfAbsent(i, k -> new ArrayList<>()).add(rSlot);
-                }
-            }
-        }
-    }
-
-    private static class Session {
-        Inventory inv;
-        EventManager manager;
-        Map<Integer, Integer> rewardSlots = new HashMap<>();
-    }
-
-    private final Map<UUID, Session> open = new HashMap<>();
-
-    public void open(Player player, EventManager eventManager) {
+    private static final List<Integer> PATH_SLOTS = List.of(
+            1, 3, 4, 5, 7,
+            10, 12, 14, 16,
+            19, 21, 23, 25,
+            28, 30, 32, 34,
+            37, 38, 39, 41, 42, 43
+    );
+        for (int i = 0; i < 54; i++) {
+            if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
         int progress = eventManager.getProgress(player);
         int max = eventManager.getMaxProgress();
-        Inventory inv = Bukkit.createInventory(null, 54,
-                "Event Progress: " + progress + "/" + max);
+                eventManager.getName() + " - " + progress + "/" + max);
 
-        double perSlot = (double) max / PATH_SLOTS.size();
-        int filled = (int) Math.floor(progress / perSlot);
+        ItemStack filled = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
+        ItemMeta meta = filled.getItemMeta();
+        meta.setDisplayName("§eProgress " + progress + " / " + max);
+        filled.setItemMeta(meta);
 
-        ItemStack filledItem = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
-        ItemStack emptyItem = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
-        ItemMeta mFilled = filledItem.getItemMeta();
-        ItemMeta mEmpty = emptyItem.getItemMeta();
-        String loreLine = "Progress: §e" + progress + "§7 / §e" + max;
-        mFilled.setLore(Collections.singletonList(loreLine));
-        mEmpty.setLore(Collections.singletonList(loreLine));
-        filledItem.setItemMeta(mFilled);
-        emptyItem.setItemMeta(mEmpty);
+        ItemStack empty = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
 
-        ItemStack bg = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta bgMeta = bg.getItemMeta();
-        bgMeta.setDisplayName(" ");
-        bg.setItemMeta(bgMeta);
-
-        for (int i = 0; i < 54; i++) {
-            inv.setItem(i, bg);
+        for (int i = 0; i < size - 9; i++) {
+            inv.setItem(i, i < filledSlots ? filled : empty);
         }
 
-        for (int i = 0; i < PATH_SLOTS.size(); i++) {
-            int slot = PATH_SLOTS.get(i);
-            inv.setItem(slot, i < filled ? filledItem : emptyItem);
+        ItemStack info = new ItemStack(Material.PAPER);
+        ItemMeta infoMeta = info.getItemMeta();
+        infoMeta.setDisplayName("§b" + eventManager.getName());
+        infoMeta.setLore(java.util.List.of(
+                eventManager.getDescription(),
+                "Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining())
+        ));
+        info.setItemMeta(infoMeta);
+        inv.setItem(size - 1, info);
+
+        int index = size - 9;
+        for (var reward : eventManager.getRewards()) {
+            ItemStack rewardItem = reward.item().clone();
+            ItemMeta m = rewardItem.getItemMeta();
+            m.setDisplayName("§6Reward at " + reward.requiredProgress());
+            m.setLore(java.util.List.of("Requires: " + reward.requiredProgress()));
+            rewardItem.setItemMeta(m);
+            inv.setItem(index++, rewardItem);
+            if (index >= size - 1) break;
         }
 
         Session session = new Session();
         session.inv = inv;
         session.manager = eventManager;
-
-        Set<Integer> usedReward = new HashSet<>();
-        for (var reward : eventManager.getRewards()) {
-            int pathIndex = (int) Math.floor(reward.requiredProgress() / perSlot);
-            if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
-            List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
-            int slot = -1;
-            if (candidates != null) {
-                for (int c : candidates) if (usedReward.add(c)) { slot = c; break; }
-            }
-            if (slot == -1) {
-                for (int c : REWARD_SLOTS) if (usedReward.add(c)) { slot = c; break; }
-            }
-            if (slot == -1) continue;
-
-            ItemStack rewardItem = reward.item().clone();
-            ItemMeta rm = rewardItem.getItemMeta();
-            boolean unlocked = progress >= reward.requiredProgress();
-            rm.setLore(Arrays.asList(
-                    "Required: §6" + reward.requiredProgress() + "§7 points",
-                    unlocked ? "§aClick to claim!" : "§cNot yet unlocked"
-            ));
-            rewardItem.setItemMeta(rm);
-            inv.setItem(slot, rewardItem);
-            session.rewardSlots.put(slot, reward.requiredProgress());
-        }
-
         open.put(player.getUniqueId(), session);
+
         player.openInventory(inv);
     }
 
@@ -137,23 +68,26 @@ public class PlayerProgressGUI implements Listener {
         Player player = (Player) event.getWhoClicked();
         Session session = open.get(player.getUniqueId());
         if (session == null || !event.getInventory().equals(session.inv)) return;
+        EventManager eventManager = session.manager;
         event.setCancelled(true);
-        Integer req = session.rewardSlots.get(event.getRawSlot());
-        if (req != null) {
-            if (session.manager.claimReward(player, req)) {
-                session.manager.getRewards().stream()
-                        .filter(r -> r.requiredProgress() == req)
-                        .findFirst()
-                        .ifPresent(r -> player.getInventory().addItem(r.item().clone()));
-                player.sendMessage("§aReward claimed!");
-            } else {
-                player.sendMessage("§cNot yet unlocked");
+        ItemStack item = event.getCurrentItem();
+        if (item == null) return;
+        for (var reward : eventManager.getRewards()) {
+            if (item.isSimilar(reward.item())) {
+                if (eventManager.claimReward(player, reward.requiredProgress())) {
+                    player.getInventory().addItem(reward.item().clone());
+                    player.sendMessage("§aReward claimed!");
+                } else {
+                    player.sendMessage("§cYou cannot claim this reward yet.");
+                }
+                break;
             }
         }
     }
 
     @EventHandler
-    public void onClose(InventoryCloseEvent event) {
+    public void onClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
         open.remove(event.getPlayer().getUniqueId());
     }
+
 }
