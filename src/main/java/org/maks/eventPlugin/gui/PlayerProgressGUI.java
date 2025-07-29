@@ -29,8 +29,9 @@ public class PlayerProgressGUI implements Listener {
     static {
         for (int i = 0; i < 54; i++) {
             if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
-
         }
+        REWARD_SLOTS.remove(Integer.valueOf(53));
+
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
             int row = slot / 9;
@@ -59,15 +60,17 @@ public class PlayerProgressGUI implements Listener {
         Inventory inv = Bukkit.createInventory(null, 54,
                 eventManager.getName() + " - " + progress + "/" + max);
 
-
         double perSlot = (double) max / PATH_SLOTS.size();
         int filled = (int) Math.floor(progress / perSlot);
 
-        ItemStack filledItem = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
-        ItemStack emptyItem = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
+        ItemStack filledItem = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
+        ItemStack emptyItem = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
         ItemMeta mFilled = filledItem.getItemMeta();
         ItemMeta mEmpty = emptyItem.getItemMeta();
         String loreLine = "Progress: §e" + progress + "§7 / §e" + max;
+        mFilled.setDisplayName("§eProgress");
+        mEmpty.setDisplayName("§fProgress");
+
         mFilled.setLore(Collections.singletonList(loreLine));
         mEmpty.setLore(Collections.singletonList(loreLine));
         filledItem.setItemMeta(mFilled);
@@ -86,6 +89,16 @@ public class PlayerProgressGUI implements Listener {
             int slot = PATH_SLOTS.get(i);
             inv.setItem(slot, i < filled ? filledItem : emptyItem);
         }
+
+        ItemStack info = new ItemStack(Material.PAPER);
+        ItemMeta infoMeta = info.getItemMeta();
+        infoMeta.setDisplayName("§b" + eventManager.getName());
+        infoMeta.setLore(Arrays.asList(
+                eventManager.getDescription(),
+                "Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining())
+        ));
+        info.setItemMeta(infoMeta);
+        inv.setItem(53, info);
 
         Session session = new Session();
         session.inv = inv;
@@ -116,6 +129,7 @@ public class PlayerProgressGUI implements Listener {
             inv.setItem(slot, rewardItem);
             session.rewardSlots.put(slot, reward.requiredProgress());
         }
+
 
         open.put(player.getUniqueId(), session);
         player.openInventory(inv);
