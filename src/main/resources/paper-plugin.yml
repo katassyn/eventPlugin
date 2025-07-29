@@ -1,0 +1,4 @@
+name: eventPlugin
+version: '1.0-SNAPSHOT'
+main: org.maks.eventPlugin.EventPlugin
+api-version: '1.20'
