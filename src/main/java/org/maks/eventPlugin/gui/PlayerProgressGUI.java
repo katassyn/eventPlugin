@@ -15,33 +15,21 @@ import org.maks.eventPlugin.eventsystem.EventManager;
 import java.util.*;
 
 public class PlayerProgressGUI implements Listener {
-    private static final String[] LAYOUT_MAP = {
-            "B Y B Y Y L L B R",
-            "R Y R Y B L L B R",
-            "B Y B Y B L L B L",
-            "R B Y B Y L B L R",
-            "B R Y R Y B L B L",
-            "R B B Y B B Y B R"
-    };
+    private static final List<Integer> PATH_SLOTS = List.of(
+            1, 3, 4, 5, 7,
+            10, 12, 14, 16,
+            19, 21, 23, 25,
+            28, 30, 32, 34,
+            37, 38, 39, 41, 42, 43
+    );
 
-    private static final List<Integer> PATH_SLOTS = new ArrayList<>();
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
     private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
 
     static {
-        List<String> rows = Arrays.asList(LAYOUT_MAP);
-        for (int r = 0; r < rows.size(); r++) {
-            String[] tokens = rows.get(r).split(" ");
-            for (int c = 0; c < tokens.length; c++) {
-                char ch = tokens[c].charAt(0);
-                int slot = r * 9 + c;
-                if (ch == 'Y' || ch == 'L') {
-                    PATH_SLOTS.add(slot);
-                }
-                if (ch == 'R') {
-                    REWARD_SLOTS.add(slot);
-                }
-            }
+        for (int i = 0; i < 54; i++) {
+            if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
+
         }
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
@@ -69,7 +57,8 @@ public class PlayerProgressGUI implements Listener {
         int progress = eventManager.getProgress(player);
         int max = eventManager.getMaxProgress();
         Inventory inv = Bukkit.createInventory(null, 54,
-                "Event Progress: " + progress + "/" + max);
+                eventManager.getName() + " - " + progress + "/" + max);
+
 
         double perSlot = (double) max / PATH_SLOTS.size();
         int filled = (int) Math.floor(progress / perSlot);
