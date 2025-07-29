@@ -1,9 +1,9 @@
 database:
-  host: "node19.icehost.pl"
-  port: "5891"
-  name: "s61121_minecraft"
-  user: "u61121_T1tlCaXDAv"
-  password: "PlwA+z7DQ=cS0R7.ixxCxbhD"
+  host: localhost
+  port: "3306"
+  name: database
+  user: user
+  password: pass
 
 events:
   "1":
@@ -11,9 +11,7 @@ events:
     active: true
     duration_days: 14
     max_progress: 12000
-    description: "The realm is overrun with monsters! Join the Monster Hunt and track your 
-    progress as you defeat different creature types. Reach milestones to earn increasingly 
-    valuable rewards. Will you rise to become the ultimate monster slayer?"
+    description: "Monster hunt has begun, kill all monsters to get rewards."
     drop_chances:
       "0": 75
       "1": 10
