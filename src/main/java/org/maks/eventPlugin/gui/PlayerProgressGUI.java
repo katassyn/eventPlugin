@@ -23,17 +23,15 @@ public class PlayerProgressGUI implements Listener {
      */
     private static final List<Integer> PATH_SLOTS = List.of(
             // row 0 (left → right)
-            1, 3, 4, 5, 6,
+            1, 3, 4, 5, 7,
             // row 1 (right → left)
-            15, 14, 12, 10,
+            16, 14, 12, 10,
             // row 2 (left → right)
-            19, 21, 23, 24, 26,
+            19, 21, 23, 25,
             // row 3 (right → left)
-            34, 32, 31, 29,
+            34, 32, 30, 28,
             // row 4 (left → right)
-            38, 40, 42, 44,
-            // row 5 (right → left)
-            51, 48
+            37, 38, 39, 41, 42, 43
     );
 
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
@@ -80,7 +78,6 @@ public class PlayerProgressGUI implements Listener {
                         shortNumber(progress) + "/" + shortNumber(max) + " - " +
                         TimeUtil.formatDuration(eventManager.getTimeRemaining()));
 
-
         double perSlot = (double) max / PATH_SLOTS.size();
         int filled = (int) Math.floor(progress / perSlot);
 
@@ -91,7 +88,6 @@ public class PlayerProgressGUI implements Listener {
         String numbers = "§e" + progress + "§7 / §e" + max;
         mFilled.setDisplayName("§eProgress: " + numbers);
         mEmpty.setDisplayName("§fProgress: " + numbers);
-
         filledItem.setItemMeta(mFilled);
         emptyItem.setItemMeta(mEmpty);
 
@@ -103,6 +99,7 @@ public class PlayerProgressGUI implements Listener {
         for (int i = 0; i < 54; i++) {
             inv.setItem(i, bg);
         }
+
 
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
