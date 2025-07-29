@@ -35,6 +35,7 @@ public class PlayerProgressGUI implements Listener {
             // row 5 (right → left)
             51, 48
     );
+
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
     private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
 
@@ -43,6 +44,7 @@ public class PlayerProgressGUI implements Listener {
             if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
         }
         REWARD_SLOTS.remove(Integer.valueOf(53));
+
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
             int row = slot / 9;
@@ -67,6 +69,7 @@ public class PlayerProgressGUI implements Listener {
         return n >= 1000 ? (n / 1000) + "k" : String.valueOf(n);
     }
 
+
     private final Map<UUID, Session> open = new HashMap<>();
 
     public void open(Player player, EventManager eventManager) {
@@ -76,6 +79,7 @@ public class PlayerProgressGUI implements Listener {
                 eventManager.getName() + " - " +
                         shortNumber(progress) + "/" + shortNumber(max) + " - " +
                         TimeUtil.formatDuration(eventManager.getTimeRemaining()));
+
 
         double perSlot = (double) max / PATH_SLOTS.size();
         int filled = (int) Math.floor(progress / perSlot);
@@ -87,6 +91,7 @@ public class PlayerProgressGUI implements Listener {
         String numbers = "§e" + progress + "§7 / §e" + max;
         mFilled.setDisplayName("§eProgress: " + numbers);
         mEmpty.setDisplayName("§fProgress: " + numbers);
+
         filledItem.setItemMeta(mFilled);
         emptyItem.setItemMeta(mEmpty);
 
