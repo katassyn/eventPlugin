@@ -67,7 +67,6 @@ public class PlayerProgressGUI implements Listener {
         return n >= 1000 ? (n / 1000) + "k" : String.valueOf(n);
     }
 
-
     private final Map<UUID, Session> open = new HashMap<>();
 
     public void open(Player player, EventManager eventManager) {
@@ -109,16 +108,16 @@ public class PlayerProgressGUI implements Listener {
         ItemStack info = new ItemStack(Material.PAPER);
         ItemMeta infoMeta = info.getItemMeta();
         infoMeta.setDisplayName("§b" + eventManager.getName());
-        infoMeta.setLore(Arrays.asList(
-                eventManager.getDescription(),
-                "Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining())
-        ));
+        List<String> lore = new ArrayList<>(Arrays.asList(eventManager.getDescription().split("\\n")));
+        lore.add("Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining()));
+        infoMeta.setLore(lore);
         info.setItemMeta(infoMeta);
         inv.setItem(53, info);
 
         Session session = new Session();
         session.inv = inv;
         session.manager = eventManager;
+
 
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
