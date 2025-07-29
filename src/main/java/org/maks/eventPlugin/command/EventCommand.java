@@ -16,13 +16,16 @@ public class EventCommand implements CommandExecutor {
     private final DatabaseManager database;
     private final PlayerProgressGUI progressGUI;
     private final AdminRewardEditorGUI rewardGUI;
+    private final org.maks.eventPlugin.config.ConfigManager config;
 
-    public EventCommand(Map<String, EventManager> events, DatabaseManager database, PlayerProgressGUI progressGUI, AdminRewardEditorGUI rewardGUI) {
+    public EventCommand(Map<String, EventManager> events, DatabaseManager database,
+                        PlayerProgressGUI progressGUI, AdminRewardEditorGUI rewardGUI,
+                        org.maks.eventPlugin.config.ConfigManager config) {
         this.events = events;
         this.database = database;
         this.progressGUI = progressGUI;
         this.rewardGUI = rewardGUI;
-
+        this.config = config;
     }
 
     @Override
@@ -31,15 +34,24 @@ public class EventCommand implements CommandExecutor {
         switch (args[0].toLowerCase()) {
             case "start" -> {
                 if (!sender.hasPermission("eventplugin.admin")) return true;
-                if (args.length < 3) {
-                    sender.sendMessage("Usage: /event start <id> <durationSeconds> [maxProgress]");
+                if (args.length < 2) {
+                    sender.sendMessage("Usage: /event start <id>");
                     return true;
                 }
                 String id = args[1];
-                long duration = Long.parseLong(args[2]);
-                int max = args.length >= 4 ? Integer.parseInt(args[3]) : 25000;
                 EventManager manager = events.computeIfAbsent(id, k -> new EventManager(database, k));
-                manager.start(id, "", max, duration);
+
+                var sec = config.getSection("events." + id);
+                String name = sec != null ? sec.getString("name", id) : manager.getName();
+                String desc = sec != null ? sec.getString("description", "") : manager.getDescription();
+                int max = sec != null ? sec.getInt("max_progress", manager.getMaxProgress()) : manager.getMaxProgress();
+                long duration = 0L;
+                if (sec != null) {
+                    int days = sec.getInt("duration_days", 0);
+                    if (days > 0) duration = days * 86400L;
+                }
+
+                manager.start(name, desc, max, duration);
                 sender.sendMessage("Started event " + id);
             }
             case "stop" -> {
