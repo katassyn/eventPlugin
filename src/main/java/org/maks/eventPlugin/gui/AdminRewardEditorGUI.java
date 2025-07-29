@@ -106,6 +106,7 @@ public class AdminRewardEditorGUI implements Listener {
 
             // Only react to clicks inside our GUI
             if (clicked != null && clicked.equals(session.inventory)) {
+
                 if (slot == session.inventory.getSize() - 1) {
                     // save rewards
                     List<Reward> rewards = new ArrayList<>();
@@ -125,6 +126,7 @@ public class AdminRewardEditorGUI implements Listener {
                             return; // ignore other click types
                         }
                     }
+
                     session.progress.set(slot, prog);
                     ItemStack item = session.inventory.getItem(slot);
                     if (item != null) {
@@ -153,8 +155,24 @@ public class AdminRewardEditorGUI implements Listener {
                 if (raw < session.inventory.getSize()) {
                     event.setCancelled(true);
                     break;
+
                 }
+            } else {
+                // allow interaction with player inventory while editing
+                event.setCancelled(false);
             }
+        }
+    }
+
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        Player player = (Player) event.getWhoClicked();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null) return;
+
+        if (event.getView().getTopInventory().equals(session.inventory)) {
+            // Prevent dragging items in or out of the GUI
+            event.setCancelled(true);
         }
     }
 
