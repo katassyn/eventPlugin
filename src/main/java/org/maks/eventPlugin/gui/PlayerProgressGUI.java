@@ -16,13 +16,24 @@ import org.maks.eventPlugin.util.TimeUtil;
 import java.util.*;
 
 public class PlayerProgressGUI implements Listener {
+    /**
+     * Ordered slots representing the progress path. The order follows the
+     * visual snake-like track defined in the specification so that progress
+     * fills along the path correctly.
+     */
     private static final List<Integer> PATH_SLOTS = List.of(
+            // row 0 (left → right)
             1, 3, 4, 5, 6,
-            10, 12, 14, 15,
+            // row 1 (right → left)
+            15, 14, 12, 10,
+            // row 2 (left → right)
             19, 21, 23, 24, 26,
-            29, 31, 32, 34,
+            // row 3 (right → left)
+            34, 32, 31, 29,
+            // row 4 (left → right)
             38, 40, 42, 44,
-            48, 51
+            // row 5 (right → left)
+            51, 48
     );
 
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
@@ -54,13 +65,19 @@ public class PlayerProgressGUI implements Listener {
         Map<Integer, Integer> rewardSlots = new HashMap<>();
     }
 
+    private static String shortNumber(int n) {
+        return n >= 1000 ? (n / 1000) + "k" : String.valueOf(n);
+    }
+
+
     private final Map<UUID, Session> open = new HashMap<>();
 
     public void open(Player player, EventManager eventManager) {
         int progress = eventManager.getProgress(player);
         int max = eventManager.getMaxProgress();
         Inventory inv = Bukkit.createInventory(null, 54,
-                eventManager.getName() + " - " + progress + "/" + max + " - " +
+                eventManager.getName() + " - " +
+                        shortNumber(progress) + "/" + shortNumber(max) + " - " +
                         TimeUtil.formatDuration(eventManager.getTimeRemaining()));
 
 
