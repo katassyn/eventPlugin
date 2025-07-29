@@ -118,7 +118,6 @@ public class PlayerProgressGUI implements Listener {
         session.inv = inv;
         session.manager = eventManager;
 
-
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
             int pathIndex = (int) Math.floor(reward.requiredProgress() / perSlot);
