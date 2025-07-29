@@ -35,7 +35,8 @@ public class BuffManager {
 
     private void loadBuffs() {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("SELECT player_uuid, buff_end FROM event_progress")) {
+             var ps = conn.prepareStatement("SELECT player_uuid, buff_end FROM event_buffs")) {
+
             try (var rs = ps.executeQuery()) {
                 while (rs.next()) {
                     UUID id = UUID.fromString(rs.getString(1));
@@ -50,14 +51,14 @@ public class BuffManager {
     private void saveBuff(UUID uuid, Instant end) {
         long millis = end.toEpochMilli();
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("UPDATE event_progress SET buff_end=? WHERE player_uuid=?")) {
+             var ps = conn.prepareStatement("UPDATE event_buffs SET buff_end=? WHERE player_uuid=?")) {
             ps.setLong(1, millis);
             ps.setString(2, uuid.toString());
             if (ps.executeUpdate() == 0) {
-                try (var ins = conn.prepareStatement("INSERT INTO event_progress(player_uuid, progress, buff_end) VALUES (?,?,?)")) {
+                try (var ins = conn.prepareStatement("INSERT INTO event_buffs(player_uuid, buff_end) VALUES (?,?)")) {
                     ins.setString(1, uuid.toString());
-                    ins.setInt(2, 0);
-                    ins.setLong(3, millis);
+                    ins.setLong(2, millis);
+
                     ins.executeUpdate();
                 }
             }

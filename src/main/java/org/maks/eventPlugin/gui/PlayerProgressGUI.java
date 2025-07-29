@@ -10,20 +10,26 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.maks.eventPlugin.eventsystem.EventManager;
+import org.maks.eventPlugin.util.TimeUtil;
+
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public class PlayerProgressGUI implements Listener {
-    private final EventManager eventManager;
-    private final Map<UUID, Inventory> open = new HashMap<>();
-
-    public PlayerProgressGUI(EventManager eventManager) {
-        this.eventManager = eventManager;
+    private static class Session {
+        Inventory inv;
+        EventManager manager;
     }
 
-    public void open(Player player) {
+    private final Map<UUID, Session> open = new HashMap<>();
+
+    public PlayerProgressGUI() {
+    }
+
+    public void open(Player player, EventManager eventManager) {
+
         int size = 27;
         Inventory inv = Bukkit.createInventory(null, size, "Event Progress");
 
@@ -42,6 +48,16 @@ public class PlayerProgressGUI implements Listener {
             inv.setItem(i, i < filledSlots ? filled : empty);
         }
 
+        ItemStack info = new ItemStack(Material.PAPER);
+        ItemMeta infoMeta = info.getItemMeta();
+        infoMeta.setDisplayName("§b" + eventManager.getName());
+        infoMeta.setLore(java.util.List.of(
+                eventManager.getDescription(),
+                "Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining())
+        ));
+        info.setItemMeta(infoMeta);
+        inv.setItem(size - 1, info);
+
         int index = size - 9;
         for (var reward : eventManager.getRewards()) {
             ItemStack rewardItem = reward.item().clone();
@@ -50,18 +66,23 @@ public class PlayerProgressGUI implements Listener {
             m.setLore(java.util.List.of("Requires: " + reward.requiredProgress()));
             rewardItem.setItemMeta(m);
             inv.setItem(index++, rewardItem);
-            if (index >= size) break;
+            if (index >= size - 1) break;
         }
 
-        open.put(player.getUniqueId(), inv);
+        Session session = new Session();
+        session.inv = inv;
+        session.manager = eventManager;
+        open.put(player.getUniqueId(), session);
+
         player.openInventory(inv);
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
-        Inventory inv = open.get(player.getUniqueId());
-        if (inv == null || !event.getInventory().equals(inv)) return;
+        Session session = open.get(player.getUniqueId());
+        if (session == null || !event.getInventory().equals(session.inv)) return;
+        EventManager eventManager = session.manager;
         event.setCancelled(true);
         ItemStack item = event.getCurrentItem();
         if (item == null) return;
@@ -77,4 +98,10 @@ public class PlayerProgressGUI implements Listener {
             }
         }
     }
+
+    @EventHandler
+    public void onClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+        open.remove(event.getPlayer().getUniqueId());
+    }
+
 }

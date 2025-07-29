@@ -32,17 +32,32 @@ public class DatabaseManager {
     public void setupTables() {
         try (Connection conn = getConnection();
              var st = conn.createStatement()) {
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS events(" +
+                    "event_id VARCHAR(100) PRIMARY KEY," +
+                    "name VARCHAR(100)," +
+                    "description TEXT," +
+                    "end_time BIGINT," +
+                    "max_progress INT," +
+                    "active BOOLEAN DEFAULT 0)");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_progress(" +
-                    "player_uuid VARCHAR(36) PRIMARY KEY," +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
                     "progress INT NOT NULL," +
-                    "buff_end BIGINT NOT NULL DEFAULT 0)");
+                    "PRIMARY KEY(event_id, player_uuid))");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_rewards(" +
-                    "required INT PRIMARY KEY," +
-                    "item TEXT NOT NULL)");
+                    "event_id VARCHAR(100)," +
+                    "required INT," +
+                    "item TEXT NOT NULL," +
+                    "PRIMARY KEY(event_id, required))");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_claimed(" +
+                    "event_id VARCHAR(100)," +
                     "player_uuid VARCHAR(36)," +
                     "reward INT," +
-                    "PRIMARY KEY(player_uuid, reward))");
+                    "PRIMARY KEY(event_id, player_uuid, reward))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS event_buffs(" +
+                    "player_uuid VARCHAR(36) PRIMARY KEY," +
+                    "buff_end BIGINT NOT NULL)");
+
         } catch (SQLException ex) {
             Bukkit.getLogger().severe("[EventPlugin] Could not setup database tables: " + ex.getMessage());
         }

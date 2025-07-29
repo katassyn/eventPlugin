@@ -31,4 +31,20 @@ public class ConfigManager {
     public String getString(String path) {
         return config.getString(path);
     }
+
+    public boolean getBoolean(String path) {
+        return config.getBoolean(path);
+    }
+
+    public int getInt(String path) {
+        return config.getInt(path);
+    }
+
+    public void set(String path, Object value) {
+        config.set(path, value);
+        try {
+            config.save(new File(plugin.getDataFolder(), "config.yml"));
+        } catch (IOException ignored) {
+        }
+    }
 }

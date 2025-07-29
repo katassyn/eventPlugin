@@ -10,21 +10,26 @@ import org.maks.eventPlugin.eventsystem.EventManager;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class MythicMobProgressListener implements Listener {
-    private final EventManager eventManager;
+    private final java.util.Map<String, EventManager> events;
     private final BuffManager buffManager;
 
-    public MythicMobProgressListener(EventManager eventManager, BuffManager buffManager) {
-        this.eventManager = eventManager;
+    public MythicMobProgressListener(java.util.Map<String, EventManager> events, BuffManager buffManager) {
+        this.events = events;
+
         this.buffManager = buffManager;
     }
 
     @EventHandler
     public void onMobDeath(MythicMobDeathEvent event) {
-        if (!eventManager.isActive()) return;
-        if (event.getKiller() instanceof Player player) {
-            int amount = ThreadLocalRandom.current().nextInt(0, 6);
-            double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
-            eventManager.addProgress(player, amount, multiplier);
+        if (!(event.getKiller() instanceof Player player)) return;
+        int amount = ThreadLocalRandom.current().nextInt(0, 6);
+        double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
+        for (EventManager manager : events.values()) {
+            manager.checkExpiry();
+            if (manager.isActive()) {
+                manager.addProgress(player, amount, multiplier);
+            }
+
         }
     }
 }
