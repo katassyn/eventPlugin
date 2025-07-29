@@ -33,6 +33,7 @@ public class PlayerProgressGUI implements Listener {
             // row 4 (left → right)
             37, 38, 39, 41, 42, 43
     );
+
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
     private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
 
@@ -41,6 +42,7 @@ public class PlayerProgressGUI implements Listener {
             if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
         }
         REWARD_SLOTS.remove(Integer.valueOf(53));
+
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
             int row = slot / 9;
@@ -96,6 +98,7 @@ public class PlayerProgressGUI implements Listener {
         for (int i = 0; i < 54; i++) {
             inv.setItem(i, bg);
         }
+
 
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
