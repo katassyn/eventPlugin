@@ -22,7 +22,6 @@ public final class EventPlugin extends JavaPlugin {
     private PlayerProgressGUI progressGUI;
     private AdminRewardEditorGUI rewardGUI;
 
-
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -39,7 +38,6 @@ public final class EventPlugin extends JavaPlugin {
         databaseManager.connect(host, port, db, user, pass);
         databaseManager.setupTables();
 
-
         eventManagers = new java.util.HashMap<>();
         buffManager = new BuffManager(databaseManager);
         progressGUI = new PlayerProgressGUI();
@@ -47,12 +45,14 @@ public final class EventPlugin extends JavaPlugin {
         loadActiveEvents();
         loadConfiguredEvents();
 
-
-        getServer().getPluginManager().registerEvents(new MythicMobProgressListener(eventManagers, buffManager), this);
+        if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) {
+            getServer().getPluginManager().registerEvents(new MythicMobProgressListener(eventManagers, buffManager), this);
+        } else {
+            Bukkit.getLogger().warning("MythicMobs not found - progress events disabled");
+        }
         getServer().getPluginManager().registerEvents(new AttrieItemListener(this, buffManager), this);
         getServer().getPluginManager().registerEvents(progressGUI, this);
         getServer().getPluginManager().registerEvents(rewardGUI, this);
-
         PluginCommand cmd = getCommand("event");
         if (cmd != null) {
             cmd.setExecutor(new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI));

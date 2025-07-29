@@ -38,5 +38,4 @@ events:
 ```
 
 Drop chances are percentages for each progress value when a configured MythicMob dies.
-=======
 
