@@ -78,6 +78,7 @@ public class AdminRewardEditorGUI implements Listener {
         if (session.stage == Session.Stage.ADD_ITEMS) {
             if (event.getView().getTopInventory() == session.inventory) {
                 // interacting with our GUI
+
                 event.setCancelled(true);
                 if (slot == 26) {
                     for (int i = 0; i < 26; i++) {
@@ -129,10 +130,19 @@ public class AdminRewardEditorGUI implements Listener {
                     meta.setLore(List.of("Required: " + prog, "Left/Right click to edit"));
                     item.setItemMeta(meta);
                     session.inventory.setItem(slot, item);
+
                 }
+            }
+            
+            if (cancelEvent) {
+                event.setCancelled(true);
+            } else {
+                // allow interaction with player inventory while editing
+                event.setCancelled(false);
             }
         }
     }
+
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
