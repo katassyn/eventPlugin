@@ -151,12 +151,16 @@ public class AdminRewardEditorGUI implements Listener {
             event.setCancelled(true);
         } else {
             // Also cancel if any dragged slot belongs to our GUI
+            boolean cancelEvent = false;
             for (int raw : event.getRawSlots()) {
                 if (raw < session.inventory.getSize()) {
-                    event.setCancelled(true);
+                    cancelEvent = true;
                     break;
-
                 }
+            }
+            
+            if (cancelEvent) {
+                event.setCancelled(true);
             } else {
                 // allow interaction with player inventory while editing
                 event.setCancelled(false);
@@ -164,17 +168,6 @@ public class AdminRewardEditorGUI implements Listener {
         }
     }
 
-    @EventHandler
-    public void onDrag(InventoryDragEvent event) {
-        Player player = (Player) event.getWhoClicked();
-        Session session = sessions.get(player.getUniqueId());
-        if (session == null) return;
-
-        if (event.getView().getTopInventory().equals(session.inventory)) {
-            // Prevent dragging items in or out of the GUI
-            event.setCancelled(true);
-        }
-    }
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
