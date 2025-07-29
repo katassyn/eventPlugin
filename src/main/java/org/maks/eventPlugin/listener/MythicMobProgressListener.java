@@ -15,12 +15,14 @@ public class MythicMobProgressListener implements Listener {
 
     public MythicMobProgressListener(java.util.Map<String, EventManager> events, BuffManager buffManager) {
         this.events = events;
+
         this.buffManager = buffManager;
     }
 
     @EventHandler
     public void onMobDeath(MythicMobDeathEvent event) {
         if (!(event.getKiller() instanceof Player player)) return;
+
         double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
         for (EventManager manager : events.values()) {
             manager.checkExpiry();
@@ -28,6 +30,7 @@ public class MythicMobProgressListener implements Listener {
                 int amount = manager.getRandomProgress();
                 manager.addProgress(player, amount, multiplier);
             }
+
         }
     }
 }

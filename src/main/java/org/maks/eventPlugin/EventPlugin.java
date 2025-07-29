@@ -10,6 +10,7 @@ import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.gui.PlayerProgressGUI;
 import org.maks.eventPlugin.gui.AdminRewardEditorGUI;
+
 import org.maks.eventPlugin.listener.AttrieItemListener;
 import org.maks.eventPlugin.listener.MythicMobProgressListener;
 
@@ -20,6 +21,7 @@ public final class EventPlugin extends JavaPlugin {
     private BuffManager buffManager;
     private PlayerProgressGUI progressGUI;
     private AdminRewardEditorGUI rewardGUI;
+
 
     @Override
     public void onEnable() {
@@ -37,12 +39,14 @@ public final class EventPlugin extends JavaPlugin {
         databaseManager.connect(host, port, db, user, pass);
         databaseManager.setupTables();
 
+
         eventManagers = new java.util.HashMap<>();
         buffManager = new BuffManager(databaseManager);
         progressGUI = new PlayerProgressGUI();
         rewardGUI = new AdminRewardEditorGUI();
         loadActiveEvents();
         loadConfiguredEvents();
+
 
         getServer().getPluginManager().registerEvents(new MythicMobProgressListener(eventManagers, buffManager), this);
         getServer().getPluginManager().registerEvents(new AttrieItemListener(this, buffManager), this);
@@ -107,5 +111,6 @@ public final class EventPlugin extends JavaPlugin {
                 manager.start(name, desc, max, dur);
             }
         }
+
     }
 }

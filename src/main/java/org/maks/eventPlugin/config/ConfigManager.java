@@ -57,4 +57,5 @@ public class ConfigManager {
     public void reload() {
         load();
     }
+
 }

@@ -6,3 +6,4 @@ commands:
   event:
     description: Main event command
     usage: /event <start|stop|gui|rewards>
+
