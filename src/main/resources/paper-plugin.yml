@@ -2,3 +2,7 @@ name: eventPlugin
 version: '1.0-SNAPSHOT'
 main: org.maks.eventPlugin.EventPlugin
 api-version: '1.20'
+commands:
+  event:
+    description: Main event command
+    usage: /event <toggle|gui|addreward>
