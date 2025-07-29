@@ -10,6 +10,7 @@ import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.gui.PlayerProgressGUI;
 import org.maks.eventPlugin.gui.AdminRewardEditorGUI;
+
 import org.maks.eventPlugin.listener.AttrieItemListener;
 import org.maks.eventPlugin.listener.MythicMobProgressListener;
 
@@ -52,7 +53,6 @@ public final class EventPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AttrieItemListener(this, buffManager), this);
         getServer().getPluginManager().registerEvents(progressGUI, this);
         getServer().getPluginManager().registerEvents(rewardGUI, this);
-
         PluginCommand cmd = getCommand("event");
         if (cmd != null) {
             cmd.setExecutor(new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI));
@@ -111,5 +111,6 @@ public final class EventPlugin extends JavaPlugin {
                 manager.start(name, desc, max, dur);
             }
         }
+
     }
 }
