@@ -73,16 +73,12 @@ public class AdminRewardEditorGUI implements Listener {
         Session session = sessions.get(player.getUniqueId());
         if (session == null) return;
 
-        // Only handle clicks when our GUI is the top inventory
-        if (!event.getView().getTopInventory().equals(session.inventory)) return;
-
-        Inventory clicked = event.getClickedInventory();
-        if (clicked == null) return;
-
         int slot = event.getRawSlot();
 
         if (session.stage == Session.Stage.ADD_ITEMS) {
-            if (clicked.equals(session.inventory)) {
+            if (event.getView().getTopInventory() == session.inventory) {
+                // interacting with our GUI
+
                 event.setCancelled(true);
                 if (slot == 26) {
                     for (int i = 0; i < 26; i++) {
@@ -93,69 +89,48 @@ public class AdminRewardEditorGUI implements Listener {
                     }
                     openProgressStage(player, session);
                 } else if (slot < 26) {
-                    // allow placing/removing items in reward slots
+                    // allow placing/removing reward items
                     event.setCancelled(false);
                 }
             } else {
-                // allow interaction with player inventory
+                // player inventory interaction
                 event.setCancelled(false);
             }
         } else if (session.stage == Session.Stage.SET_PROGRESS) {
-            // Block all interactions by default
+            // cancel all clicks while editing progress
             event.setCancelled(true);
 
-            // Only react to clicks inside our GUI
-            if (clicked != null && clicked.equals(session.inventory)) {
+            if (event.getView().getTopInventory() != session.inventory) {
+                return; // clicked outside our GUI
+            }
 
-                if (slot == session.inventory.getSize() - 1) {
-                    // save rewards
-                    List<Reward> rewards = new ArrayList<>();
-                    for (int i = 0; i < session.rewards.size(); i++) {
-                        rewards.add(new Reward(session.progress.get(i), session.rewards.get(i)));
-                    }
-                    session.eventManager.setRewards(rewards);
-                    player.sendMessage("Rewards saved.");
-                    player.closeInventory();
-                    sessions.remove(player.getUniqueId());
-                } else if (slot < session.rewards.size()) {
-                    int prog = session.progress.get(slot);
-                    switch (event.getClick()) {
-                        case LEFT -> prog += 100;
-                        case RIGHT -> prog = Math.max(0, prog - 100);
-                        default -> {
-                            return; // ignore other click types
-                        }
-                    }
-
-                    session.progress.set(slot, prog);
-                    ItemStack item = session.inventory.getItem(slot);
-                    if (item != null) {
-                        ItemMeta meta = item.getItemMeta();
-                        meta.setLore(List.of("Required: " + prog, "Left/Right click to edit"));
-                        item.setItemMeta(meta);
-                        session.inventory.setItem(slot, item);
+            if (slot == session.inventory.getSize() - 1) {
+                // save rewards
+                List<Reward> rewards = new ArrayList<>();
+                for (int i = 0; i < session.rewards.size(); i++) {
+                    rewards.add(new Reward(session.progress.get(i), session.rewards.get(i)));
+                }
+                session.eventManager.setRewards(rewards);
+                player.sendMessage("Rewards saved.");
+                player.closeInventory();
+                sessions.remove(player.getUniqueId());
+            } else if (slot < session.rewards.size()) {
+                int prog = session.progress.get(slot);
+                switch (event.getClick()) {
+                    case LEFT -> prog += 100;
+                    case RIGHT -> prog = Math.max(0, prog - 100);
+                    default -> {
+                        return; // ignore other click types
                     }
                 }
-            }
-        }
-    }
+                session.progress.set(slot, prog);
+                ItemStack item = session.inventory.getItem(slot);
+                if (item != null) {
+                    ItemMeta meta = item.getItemMeta();
+                    meta.setLore(List.of("Required: " + prog, "Left/Right click to edit"));
+                    item.setItemMeta(meta);
+                    session.inventory.setItem(slot, item);
 
-    @EventHandler
-    public void onDrag(InventoryDragEvent event) {
-        Player player = (Player) event.getWhoClicked();
-        Session session = sessions.get(player.getUniqueId());
-        if (session == null) return;
-
-        if (event.getView().getTopInventory().equals(session.inventory)) {
-            // Prevent dragging items in or out of the GUI
-            event.setCancelled(true);
-        } else {
-            // Also cancel if any dragged slot belongs to our GUI
-            boolean cancelEvent = false;
-            for (int raw : event.getRawSlots()) {
-                if (raw < session.inventory.getSize()) {
-                    cancelEvent = true;
-                    break;
                 }
             }
             
@@ -168,6 +143,26 @@ public class AdminRewardEditorGUI implements Listener {
         }
     }
 
+
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        Player player = (Player) event.getWhoClicked();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null) return;
+
+        if (event.getView().getTopInventory() == session.inventory) {
+            // Prevent dragging items in or out of the GUI
+            event.setCancelled(true);
+        } else {
+            // Also cancel if any dragged slot belongs to our GUI
+            for (int raw : event.getRawSlots()) {
+                if (raw < session.inventory.getSize()) {
+                    event.setCancelled(true);
+                    break;
+                }
+            }
+        }
+    }
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
