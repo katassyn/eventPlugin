@@ -12,7 +12,6 @@ events:
     duration_days: 14
     max_progress: 12000
     description: "Monster hunt has begun, kill all monsters to get rewards."
-
     drop_chances:
       "0": 75
       "1": 10

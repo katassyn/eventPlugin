@@ -11,7 +11,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.maks.eventPlugin.eventsystem.EventManager;
-import org.maks.eventPlugin.util.TimeUtil;
 
 import java.util.*;
 
@@ -23,6 +22,7 @@ public class PlayerProgressGUI implements Listener {
             28, 30, 32, 34,
             37, 38, 39, 41, 42, 43
     );
+
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
     private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
 
@@ -31,6 +31,7 @@ public class PlayerProgressGUI implements Listener {
             if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
         }
         REWARD_SLOTS.remove(Integer.valueOf(53));
+
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
             int row = slot / 9;
@@ -69,6 +70,7 @@ public class PlayerProgressGUI implements Listener {
         String loreLine = "Progress: §e" + progress + "§7 / §e" + max;
         mFilled.setDisplayName("§eProgress");
         mEmpty.setDisplayName("§fProgress");
+
         mFilled.setLore(Collections.singletonList(loreLine));
         mEmpty.setLore(Collections.singletonList(loreLine));
         filledItem.setItemMeta(mFilled);
@@ -127,6 +129,7 @@ public class PlayerProgressGUI implements Listener {
             inv.setItem(slot, rewardItem);
             session.rewardSlots.put(slot, reward.requiredProgress());
         }
+
 
         open.put(player.getUniqueId(), session);
         player.openInventory(inv);
