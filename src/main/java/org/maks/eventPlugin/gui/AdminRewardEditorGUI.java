@@ -105,6 +105,7 @@ public class AdminRewardEditorGUI implements Listener {
             event.setCancelled(true);
 
             if (clicked.equals(session.inventory)) {
+
                 if (slot == session.inventory.getSize() - 1) {
                     // save rewards
                     List<Reward> rewards = new ArrayList<>();
@@ -128,6 +129,9 @@ public class AdminRewardEditorGUI implements Listener {
                         session.inventory.setItem(slot, item);
                     }
                 }
+            } else {
+                // allow interaction with player inventory while editing
+                event.setCancelled(false);
             }
         }
     }
