@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -100,8 +101,11 @@ public class AdminRewardEditorGUI implements Listener {
                 event.setCancelled(false);
             }
         } else if (session.stage == Session.Stage.SET_PROGRESS) {
+            // Block all regular inventory interactions while configuring progress
+            event.setCancelled(true);
+
             if (clicked.equals(session.inventory)) {
-                event.setCancelled(true);
+
                 if (slot == session.inventory.getSize() - 1) {
                     // save rewards
                     List<Reward> rewards = new ArrayList<>();
@@ -129,6 +133,18 @@ public class AdminRewardEditorGUI implements Listener {
                 // allow interaction with player inventory while editing
                 event.setCancelled(false);
             }
+        }
+    }
+
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        Player player = (Player) event.getWhoClicked();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null) return;
+
+        if (event.getView().getTopInventory().equals(session.inventory)) {
+            // Prevent dragging items in or out of the GUI
+            event.setCancelled(true);
         }
     }
 
