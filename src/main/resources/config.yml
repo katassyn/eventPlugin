@@ -4,3 +4,18 @@ database:
   name: database
   user: user
   password: pass
+
+events:
+  "1":
+    name: "Monster Hunt"
+    active: true
+    duration_days: 14
+    max_progress: 12000
+    description: "Monster hunt has begun, kill all monsters to get rewards."
+    drop_chances:
+      "0": 75
+      "1": 10
+      "2": 10
+      "3": 3
+      "5": 2
+

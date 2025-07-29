@@ -22,11 +22,12 @@ public class MythicMobProgressListener implements Listener {
     @EventHandler
     public void onMobDeath(MythicMobDeathEvent event) {
         if (!(event.getKiller() instanceof Player player)) return;
-        int amount = ThreadLocalRandom.current().nextInt(0, 6);
+
         double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
         for (EventManager manager : events.values()) {
             manager.checkExpiry();
             if (manager.isActive()) {
+                int amount = manager.getRandomProgress();
                 manager.addProgress(player, amount, multiplier);
             }
 

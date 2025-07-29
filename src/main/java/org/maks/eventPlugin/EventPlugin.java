@@ -39,11 +39,14 @@ public final class EventPlugin extends JavaPlugin {
         databaseManager.connect(host, port, db, user, pass);
         databaseManager.setupTables();
 
+
         eventManagers = new java.util.HashMap<>();
         buffManager = new BuffManager(databaseManager);
         progressGUI = new PlayerProgressGUI();
         rewardGUI = new AdminRewardEditorGUI();
         loadActiveEvents();
+        loadConfiguredEvents();
+
 
         getServer().getPluginManager().registerEvents(new MythicMobProgressListener(eventManagers, buffManager), this);
         getServer().getPluginManager().registerEvents(new AttrieItemListener(this, buffManager), this);
@@ -74,5 +77,40 @@ public final class EventPlugin extends JavaPlugin {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    private void loadConfiguredEvents() {
+        var sec = configManager.getSection("events");
+        if (sec == null) return;
+        for (String id : sec.getKeys(false)) {
+            var eSec = sec.getConfigurationSection(id);
+            if (eSec == null) continue;
+            boolean active = eSec.getBoolean("active", false);
+            String name = eSec.getString("name", id);
+            String desc = eSec.getString("description", "");
+            int max = eSec.getInt("max_progress", 25000);
+            int durationDays = eSec.getInt("duration_days", 0);
+
+            EventManager manager = eventManagers.get(id);
+            if (manager == null) {
+                manager = new EventManager(databaseManager, id);
+                eventManagers.put(id, manager);
+            }
+
+            var dropSec = eSec.getConfigurationSection("drop_chances");
+            if (dropSec != null) {
+                java.util.Map<Integer, Double> map = new java.util.HashMap<>();
+                for (String k : dropSec.getKeys(false)) {
+                    map.put(Integer.parseInt(k), dropSec.getDouble(k) / 100.0);
+                }
+                manager.setDropChances(map);
+            }
+
+            if (active) {
+                long dur = durationDays > 0 ? durationDays * 86400L : 0;
+                manager.start(name, desc, max, dur);
+            }
+        }
+
     }
 }

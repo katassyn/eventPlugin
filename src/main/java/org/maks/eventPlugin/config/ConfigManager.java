@@ -4,6 +4,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import org.bukkit.configuration.ConfigurationSection;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -47,4 +49,13 @@ public class ConfigManager {
         } catch (IOException ignored) {
         }
     }
+
+    public ConfigurationSection getSection(String path) {
+        return config.getConfigurationSection(path);
+    }
+
+    public void reload() {
+        load();
+    }
+
 }

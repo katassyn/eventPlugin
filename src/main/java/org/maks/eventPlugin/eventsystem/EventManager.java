@@ -23,19 +23,37 @@ public class EventManager {
     private String name;
     private String description;
     private long endTime;
-
     private final Map<UUID, Integer> progressMap = new HashMap<>();
     private final Map<UUID, java.util.Set<Integer>> claimedMap = new HashMap<>();
     private final List<Reward> rewards = new ArrayList<>();
+    private Map<Integer, Double> dropChances = new HashMap<>();
+
 
     public EventManager(DatabaseManager database, String eventId) {
         this.database = database;
         this.eventId = eventId;
         loadEvent();
-
         loadRewards();
         loadProgress();
     }
+
+    public void setDropChances(Map<Integer, Double> chances) {
+        this.dropChances = chances;
+    }
+
+    public int getRandomProgress() {
+        if (dropChances == null || dropChances.isEmpty()) {
+            return java.util.concurrent.ThreadLocalRandom.current().nextInt(0, 6);
+        }
+        double rnd = java.util.concurrent.ThreadLocalRandom.current().nextDouble();
+        double cumulative = 0.0;
+        for (var entry : dropChances.entrySet()) {
+            cumulative += entry.getValue();
+            if (rnd <= cumulative) return entry.getKey();
+        }
+        return 0;
+    }
+
     public boolean isActive() {
         return active;
     }
