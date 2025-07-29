@@ -70,45 +70,64 @@ public class AdminRewardEditorGUI implements Listener {
     public void onClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
         Session session = sessions.get(player.getUniqueId());
-        if (session == null || event.getInventory() != session.inventory) return;
-        event.setCancelled(true);
+        if (session == null) return;
+
+        // Only handle clicks when our GUI is the top inventory
+        if (!event.getView().getTopInventory().equals(session.inventory)) return;
+
+        Inventory clicked = event.getClickedInventory();
+        if (clicked == null) return;
+
         int slot = event.getRawSlot();
+
         if (session.stage == Session.Stage.ADD_ITEMS) {
-            if (slot == 26) {
-                for (int i = 0; i < 26; i++) {
-                    ItemStack it = session.inventory.getItem(i);
-                    if (it != null && it.getType() != Material.AIR) {
-                        session.rewards.add(it.clone());
+            if (clicked.equals(session.inventory)) {
+                event.setCancelled(true);
+                if (slot == 26) {
+                    for (int i = 0; i < 26; i++) {
+                        ItemStack it = session.inventory.getItem(i);
+                        if (it != null && it.getType() != Material.AIR) {
+                            session.rewards.add(it.clone());
+                        }
                     }
+                    openProgressStage(player, session);
+                } else if (slot < 26) {
+                    // allow placing/removing items in reward slots
+                    event.setCancelled(false);
                 }
-                openProgressStage(player, session);
-            } else if (slot < 26) {
-                // allow placing/removing items
+            } else {
+                // allow interaction with player inventory
                 event.setCancelled(false);
             }
         } else if (session.stage == Session.Stage.SET_PROGRESS) {
-            if (slot == session.inventory.getSize() - 1) {
-                // save
-                List<Reward> rewards = new ArrayList<>();
-                for (int i = 0; i < session.rewards.size(); i++) {
-                    rewards.add(new Reward(session.progress.get(i), session.rewards.get(i)));
+            if (clicked.equals(session.inventory)) {
+                event.setCancelled(true);
+                if (slot == session.inventory.getSize() - 1) {
+                    // save rewards
+                    List<Reward> rewards = new ArrayList<>();
+                    for (int i = 0; i < session.rewards.size(); i++) {
+                        rewards.add(new Reward(session.progress.get(i), session.rewards.get(i)));
+                    }
+                    session.eventManager.setRewards(rewards);
+                    player.sendMessage("Rewards saved.");
+                    player.closeInventory();
+                    sessions.remove(player.getUniqueId());
+                } else if (slot < session.rewards.size()) {
+                    int prog = session.progress.get(slot);
+                    if (event.isLeftClick()) prog += 100;
+                    else if (event.isRightClick()) prog = Math.max(0, prog - 100);
+                    session.progress.set(slot, prog);
+                    ItemStack item = session.inventory.getItem(slot);
+                    if (item != null) {
+                        ItemMeta meta = item.getItemMeta();
+                        meta.setLore(List.of("Required: " + prog, "Left/Right click to edit"));
+                        item.setItemMeta(meta);
+                        session.inventory.setItem(slot, item);
+                    }
                 }
-                session.eventManager.setRewards(rewards);
-                player.sendMessage("Rewards saved.");
-                player.closeInventory();
-                sessions.remove(player.getUniqueId());
-            } else if (slot < session.rewards.size()) {
-                int prog = session.progress.get(slot);
-                if (event.isLeftClick()) prog += 100;
-                else if (event.isRightClick()) prog = Math.max(0, prog - 100);
-                session.progress.set(slot, prog);
-                ItemStack item = session.inventory.getItem(slot);
-                if (item != null) {
-                    ItemMeta meta = item.getItemMeta();
-                    meta.setLore(List.of("Required: " + prog, "Left/Right click to edit"));
-                    item.setItemMeta(meta);
-                    session.inventory.setItem(slot, item);
-                }
+            } else {
+                // allow interaction with player inventory while editing
+                event.setCancelled(false);
             }
         }
     }
