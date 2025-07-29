@@ -101,10 +101,11 @@ public class AdminRewardEditorGUI implements Listener {
                 event.setCancelled(false);
             }
         } else if (session.stage == Session.Stage.SET_PROGRESS) {
-            // Block all regular inventory interactions while configuring progress
+            // Block all interactions by default
             event.setCancelled(true);
 
-            if (clicked.equals(session.inventory)) {
+            // Only react to clicks inside our GUI
+            if (clicked != null && clicked.equals(session.inventory)) {
 
                 if (slot == session.inventory.getSize() - 1) {
                     // save rewards
@@ -118,8 +119,14 @@ public class AdminRewardEditorGUI implements Listener {
                     sessions.remove(player.getUniqueId());
                 } else if (slot < session.rewards.size()) {
                     int prog = session.progress.get(slot);
-                    if (event.isLeftClick()) prog += 100;
-                    else if (event.isRightClick()) prog = Math.max(0, prog - 100);
+                    switch (event.getClick()) {
+                        case LEFT -> prog += 100;
+                        case RIGHT -> prog = Math.max(0, prog - 100);
+                        default -> {
+                            return; // ignore other click types
+                        }
+                    }
+
                     session.progress.set(slot, prog);
                     ItemStack item = session.inventory.getItem(slot);
                     if (item != null) {
@@ -128,6 +135,27 @@ public class AdminRewardEditorGUI implements Listener {
                         item.setItemMeta(meta);
                         session.inventory.setItem(slot, item);
                     }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        Player player = (Player) event.getWhoClicked();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null) return;
+
+        if (event.getView().getTopInventory().equals(session.inventory)) {
+            // Prevent dragging items in or out of the GUI
+            event.setCancelled(true);
+        } else {
+            // Also cancel if any dragged slot belongs to our GUI
+            for (int raw : event.getRawSlots()) {
+                if (raw < session.inventory.getSize()) {
+                    event.setCancelled(true);
+                    break;
+
                 }
             } else {
                 // allow interaction with player inventory while editing
