@@ -22,12 +22,14 @@ public class PlayerProgressGUI implements Listener {
             28, 30, 32, 34,
             37, 38, 39, 41, 42, 43
     );
+
     private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
     private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
 
     static {
         for (int i = 0; i < 54; i++) {
             if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
+
         }
         for (int i = 0; i < PATH_SLOTS.size(); i++) {
             int slot = PATH_SLOTS.get(i);
@@ -56,6 +58,7 @@ public class PlayerProgressGUI implements Listener {
         int max = eventManager.getMaxProgress();
         Inventory inv = Bukkit.createInventory(null, 54,
                 eventManager.getName() + " - " + progress + "/" + max);
+
 
         double perSlot = (double) max / PATH_SLOTS.size();
         int filled = (int) Math.floor(progress / perSlot);
