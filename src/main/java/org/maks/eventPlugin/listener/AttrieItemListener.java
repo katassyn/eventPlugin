@@ -10,6 +10,9 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.maks.eventPlugin.eventsystem.BuffManager;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.event.block.Action;
 
 public class AttrieItemListener implements Listener {
     private final BuffManager buffManager;
@@ -22,12 +25,27 @@ public class AttrieItemListener implements Listener {
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
         if (item == null || item.getType() == Material.AIR) return;
-        if (item.getItemMeta() != null && item.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.INTEGER)) {
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null && meta.getPersistentDataContainer().has(key, PersistentDataType.INTEGER)) {
             event.setCancelled(true);
-            item.setAmount(item.getAmount() - 1);
+
+            ItemStack updated = item.clone();
+            updated.setAmount(item.getAmount() - 1);
+
+            EquipmentSlot hand = event.getHand();
+            if (hand == EquipmentSlot.HAND) {
+                player.getInventory().setItemInMainHand(updated.getAmount() > 0 ? updated : null);
+            } else if (hand == EquipmentSlot.OFF_HAND) {
+                player.getInventory().setItemInOffHand(updated.getAmount() > 0 ? updated : null);
+            }
+
             buffManager.applyBuff(player, 30);
             player.sendMessage("§aEvent Attrie activated for 30 days!");
         }
