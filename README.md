@@ -10,6 +10,7 @@ Prototype plugin implementing basic event progress system for Paper 1.20.1.
 * Admin GUI to configure rewards with `/event rewards`.
 * Attrie item activation via right click (30 day buff).
 * Event metadata (name, description, duration) stored in MySQL `events` table.
+
 * MySQL connection configuration in `config.yml`.
 
 This implementation is minimal and meant as a starting point based on the

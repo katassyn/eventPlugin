@@ -15,6 +15,7 @@ public class MythicMobProgressListener implements Listener {
 
     public MythicMobProgressListener(java.util.Map<String, EventManager> events, BuffManager buffManager) {
         this.events = events;
+
         this.buffManager = buffManager;
     }
 
@@ -28,6 +29,7 @@ public class MythicMobProgressListener implements Listener {
             if (manager.isActive()) {
                 manager.addProgress(player, amount, multiplier);
             }
+
         }
     }
 }

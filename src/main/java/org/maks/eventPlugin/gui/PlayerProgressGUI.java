@@ -12,6 +12,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.util.TimeUtil;
 
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -28,6 +29,7 @@ public class PlayerProgressGUI implements Listener {
     }
 
     public void open(Player player, EventManager eventManager) {
+
         int size = 27;
         Inventory inv = Bukkit.createInventory(null, size, "Event Progress");
 
@@ -71,6 +73,7 @@ public class PlayerProgressGUI implements Listener {
         session.inv = inv;
         session.manager = eventManager;
         open.put(player.getUniqueId(), session);
+
         player.openInventory(inv);
     }
 
@@ -100,4 +103,5 @@ public class PlayerProgressGUI implements Listener {
     public void onClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
         open.remove(event.getPlayer().getUniqueId());
     }
+
 }

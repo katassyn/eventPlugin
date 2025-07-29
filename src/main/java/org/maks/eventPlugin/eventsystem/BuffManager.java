@@ -36,6 +36,7 @@ public class BuffManager {
     private void loadBuffs() {
         try (var conn = database.getConnection();
              var ps = conn.prepareStatement("SELECT player_uuid, buff_end FROM event_buffs")) {
+
             try (var rs = ps.executeQuery()) {
                 while (rs.next()) {
                     UUID id = UUID.fromString(rs.getString(1));
@@ -57,6 +58,7 @@ public class BuffManager {
                 try (var ins = conn.prepareStatement("INSERT INTO event_buffs(player_uuid, buff_end) VALUES (?,?)")) {
                     ins.setString(1, uuid.toString());
                     ins.setLong(2, millis);
+
                     ins.executeUpdate();
                 }
             }

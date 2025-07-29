@@ -22,6 +22,7 @@ public class EventCommand implements CommandExecutor {
         this.database = database;
         this.progressGUI = progressGUI;
         this.rewardGUI = rewardGUI;
+
     }
 
     @Override

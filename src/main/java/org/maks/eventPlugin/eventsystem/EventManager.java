@@ -23,6 +23,7 @@ public class EventManager {
     private String name;
     private String description;
     private long endTime;
+
     private final Map<UUID, Integer> progressMap = new HashMap<>();
     private final Map<UUID, java.util.Set<Integer>> claimedMap = new HashMap<>();
     private final List<Reward> rewards = new ArrayList<>();
@@ -31,6 +32,7 @@ public class EventManager {
         this.database = database;
         this.eventId = eventId;
         loadEvent();
+
         loadRewards();
         loadProgress();
     }
@@ -106,6 +108,7 @@ public class EventManager {
         try (var conn = database.getConnection();
              var ps = conn.prepareStatement("SELECT player_uuid, progress FROM event_progress WHERE event_id=?")) {
             ps.setString(1, eventId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     UUID id = UUID.fromString(rs.getString(1));
@@ -119,6 +122,7 @@ public class EventManager {
         try (var conn = database.getConnection();
              var ps = conn.prepareStatement("SELECT player_uuid, reward FROM event_claimed WHERE event_id=?")) {
             ps.setString(1, eventId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     UUID id = UUID.fromString(rs.getString(1));
@@ -136,6 +140,7 @@ public class EventManager {
             ps.setString(1, eventId);
             ps.setString(2, uuid.toString());
             ps.setInt(3, progress);
+
             ps.executeUpdate();
         } catch (SQLException ignored) {
         }
@@ -145,6 +150,7 @@ public class EventManager {
         try (var conn = database.getConnection();
              var ps = conn.prepareStatement("SELECT required, item FROM event_rewards WHERE event_id=?")) {
             ps.setString(1, eventId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int req = rs.getInt(1);
@@ -166,6 +172,7 @@ public class EventManager {
             ps.setString(1, eventId);
             ps.setInt(2, required);
             ps.setString(3, data);
+
             ps.executeUpdate();
         } catch (SQLException ignored) {
         }
@@ -217,6 +224,7 @@ public class EventManager {
             ps.setLong(4, endTime);
             ps.setInt(5, maxProgress);
             ps.setBoolean(6, active);
+
             ps.executeUpdate();
         } catch (SQLException ignored) {
         }
@@ -258,4 +266,5 @@ public class EventManager {
     public long getTimeRemaining() {
         return Math.max(0, endTime - Instant.now().toEpochMilli());
     }
+
 }

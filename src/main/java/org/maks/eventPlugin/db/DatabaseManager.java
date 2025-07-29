@@ -57,6 +57,7 @@ public class DatabaseManager {
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_buffs(" +
                     "player_uuid VARCHAR(36) PRIMARY KEY," +
                     "buff_end BIGINT NOT NULL)");
+
         } catch (SQLException ex) {
             Bukkit.getLogger().severe("[EventPlugin] Could not setup database tables: " + ex.getMessage());
         }

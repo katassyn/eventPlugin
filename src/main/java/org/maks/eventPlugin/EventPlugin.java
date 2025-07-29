@@ -10,6 +10,7 @@ import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.gui.PlayerProgressGUI;
 import org.maks.eventPlugin.gui.AdminRewardEditorGUI;
+
 import org.maks.eventPlugin.listener.AttrieItemListener;
 import org.maks.eventPlugin.listener.MythicMobProgressListener;
 
@@ -20,6 +21,7 @@ public final class EventPlugin extends JavaPlugin {
     private BuffManager buffManager;
     private PlayerProgressGUI progressGUI;
     private AdminRewardEditorGUI rewardGUI;
+
 
     @Override
     public void onEnable() {
