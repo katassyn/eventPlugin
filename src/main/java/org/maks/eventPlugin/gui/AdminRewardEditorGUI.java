@@ -131,7 +131,7 @@ public class AdminRewardEditorGUI implements Listener {
             meta.setLore(List.of(
                 "Required: " + progressValue,
                 "Left/Right click to edit ±100",
-                "Shift-Left click to type exact value"
+                "Shift-Right click to type exact value"
             ));
             item.setItemMeta(meta);
             inv.setItem(i, item);
@@ -265,8 +265,8 @@ public class AdminRewardEditorGUI implements Listener {
                 ItemStack item = topInventory.getItem(rawSlot);
                 if (item == null) return;
                 
-                // 1) SHIFT-LEFT → aktywuj wpisywanie liczby
-                if (event.getClick() == ClickType.SHIFT_LEFT) {
+                // 1) SHIFT-RIGHT → aktywuj wpisywanie liczby
+                if (event.getClick() == ClickType.SHIFT_RIGHT) {
                     session.pendingInputSlot = rawSlot;
                     player.closeInventory();
                     player.sendMessage(ChatColor.YELLOW + "Wpisz w czacie wymaganą wartość dla slotu #" 
@@ -289,7 +289,7 @@ public class AdminRewardEditorGUI implements Listener {
                 meta.setLore(List.of(
                     "Required: " + prog,
                     "Left/Right click to edit ±100",
-                    "Shift-Left click to type exact value"
+                    "Shift-Right click to type exact value"
                 ));
                 item.setItemMeta(meta);
                 // odświeżamy GUI
@@ -312,14 +312,11 @@ public class AdminRewardEditorGUI implements Listener {
             
             if (session.stage != Session.Stage.ADD_ITEMS) return;
             
-            // Prevent dragging items in or out of the GUI
-            event.setCancelled(true);
-            
-            // Check if any dragged slots are in our GUI
+            // Cancel drag if moving items outside allowed reward slots
             for (int raw : event.getRawSlots()) {
-                if (raw < topInventory.getSize()) {
+                if (raw < topInventory.getSize() && raw >= 26) {
                     event.setCancelled(true);
-                    break;
+                    return;
                 }
             }
         }
@@ -379,6 +376,7 @@ public class AdminRewardEditorGUI implements Listener {
         }
 
         event.setCancelled(true);  // nie wyświetlamy w czacie
+        event.getRecipients().clear();
 
         String msg = event.getMessage().trim();
         int value;
@@ -408,7 +406,7 @@ public class AdminRewardEditorGUI implements Listener {
                 meta.setLore(List.of(
                     "Required: " + value,
                     "Left/Right click to edit ±100",
-                    "Shift-Left click to type exact value"
+                    "Shift-Right click to type exact value"
                 ));
                 item.setItemMeta(meta);
                 session.inventory.setItem(slot, item);
