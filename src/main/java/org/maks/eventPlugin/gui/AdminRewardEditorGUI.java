@@ -420,7 +420,7 @@ public class AdminRewardEditorGUI implements Listener {
             return;
         }
 
-        int slot = session.pendingInputSlot;
+        final int slot = session.pendingInputSlot;
         session.progress.set(slot, value);
         session.pendingInputSlot = null;
         player.sendMessage(ChatColor.GREEN
