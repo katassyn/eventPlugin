@@ -84,6 +84,15 @@ public class EventManager {
         if (newProgress > maxProgress) newProgress = maxProgress;
         progressMap.put(player.getUniqueId(), newProgress);
         saveProgress(player.getUniqueId(), newProgress);
+
+        // Notify player when they cross a reward threshold
+        for (Reward reward : rewards) {
+            if (current < reward.requiredProgress() && newProgress >= reward.requiredProgress()) {
+                String title = "Reward unlocked!";
+                String sub = "For " + reward.requiredProgress() + " progress";
+                player.sendTitle(title, sub, 10, 60, 10);
+            }
+        }
     }
 
     public void addReward(int required, ItemStack item) {
@@ -110,6 +119,14 @@ public class EventManager {
 
     public List<Reward> getRewards() {
         return rewards;
+    }
+
+    /**
+     * Check if the player already claimed the reward for the given required progress.
+     */
+    public boolean hasClaimed(Player player, int required) {
+        var set = claimedMap.get(player.getUniqueId());
+        return set != null && set.contains(required);
     }
 
     public boolean claimReward(Player player, int required) {

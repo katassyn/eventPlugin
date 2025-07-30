@@ -157,9 +157,18 @@ public class PlayerProgressGUI implements Listener {
             ItemStack rewardItem = reward.item().clone();
             ItemMeta rm = rewardItem.getItemMeta();
             boolean unlocked = progress >= reward.requiredProgress();
+            boolean claimed = eventManager.hasClaimed(player, reward.requiredProgress());
+            String status;
+            if (claimed) {
+                status = "§aClaimed";
+            } else if (unlocked) {
+                status = "§aClick to claim!";
+            } else {
+                status = "§cNot yet unlocked";
+            }
             rm.setLore(Arrays.asList(
                     "Required: §6" + reward.requiredProgress() + "§7 points",
-                    unlocked ? "§aClick to claim!" : "§cNot yet unlocked"
+                    status
             ));
             rewardItem.setItemMeta(rm);
             inv.setItem(slot, rewardItem);
@@ -178,14 +187,35 @@ public class PlayerProgressGUI implements Listener {
         event.setCancelled(true);
         Integer req = session.rewardSlots.get(event.getRawSlot());
         if (req != null) {
+            int progress = session.manager.getProgress(player);
+            if (session.manager.hasClaimed(player, req)) {
+                player.sendMessage("§cAlready claimed");
+                return;
+            }
+            if (progress < req) {
+                player.sendMessage("§cNot yet unlocked");
+                return;
+            }
             if (session.manager.claimReward(player, req)) {
                 session.manager.getRewards().stream()
                         .filter(r -> r.requiredProgress() == req)
                         .findFirst()
                         .ifPresent(r -> player.getInventory().addItem(r.item().clone()));
+
+                // Update item lore to show claimed
+                ItemStack item = event.getInventory().getItem(event.getRawSlot());
+                if (item != null) {
+                    ItemMeta meta = item.getItemMeta();
+                    if (meta != null) {
+                        meta.setLore(Arrays.asList(
+                                "Required: §6" + req + "§7 points",
+                                "§aClaimed"
+                        ));
+                        item.setItemMeta(meta);
+                        event.getInventory().setItem(event.getRawSlot(), item);
+                    }
+                }
                 player.sendMessage("§aReward claimed!");
-            } else {
-                player.sendMessage("§cNot yet unlocked");
             }
         }
     }

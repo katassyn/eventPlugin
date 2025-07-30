@@ -40,8 +40,8 @@ public final class EventPlugin extends JavaPlugin {
 
         eventManagers = new java.util.HashMap<>();
         buffManager = new BuffManager(databaseManager);
-        progressGUI = new PlayerProgressGUI();
-        rewardGUI = new AdminRewardEditorGUI(this);
+        progressGUI = new PlayerProgressGUI(buffManager);
+        rewardGUI = new AdminRewardEditorGUI();
 
         loadActiveEvents();
         loadConfiguredEvents();
