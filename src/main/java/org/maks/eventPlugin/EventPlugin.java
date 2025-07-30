@@ -35,12 +35,18 @@ public final class EventPlugin extends JavaPlugin {
         String pass = configManager.getString("database.password");
 
         databaseManager = new DatabaseManager();
-        databaseManager.connect(host, port, db, user, pass);
-        databaseManager.setupTables();
+        try {
+            databaseManager.connect(host, port, db, user, pass);
+            databaseManager.setupTables();
+        } catch (Exception ex) {
+            getLogger().severe("Could not connect to the database: " + ex.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         eventManagers = new java.util.HashMap<>();
         buffManager = new BuffManager(databaseManager);
-        progressGUI = new PlayerProgressGUI();
+        progressGUI = new PlayerProgressGUI(buffManager);
         rewardGUI = new AdminRewardEditorGUI();
         loadActiveEvents();
         loadConfiguredEvents();
