@@ -46,6 +46,8 @@ public class AttrieItemListener implements Listener {
                 player.getInventory().setItemInOffHand(updated.getAmount() > 0 ? updated : null);
             }
 
+            player.updateInventory();
+
             buffManager.applyBuff(player, 30);
             player.sendMessage("§aEvent Attrie activated for 30 days!");
         }

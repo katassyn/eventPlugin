@@ -27,6 +27,17 @@ public class BuffManager {
         return end != null && end.isAfter(Instant.now());
     }
 
+    /**
+     * Get remaining buff duration for the given player in milliseconds.
+     * Returns 0 if the player has no active buff.
+     */
+    public long getRemaining(Player player) {
+        Instant end = buffEnd.get(player.getUniqueId());
+        if (end == null) return 0L;
+        long remaining = end.toEpochMilli() - Instant.now().toEpochMilli();
+        return Math.max(0L, remaining);
+    }
+
     public void applyBuff(Player player, int days) {
         Instant end = Instant.now().plusSeconds(days * 24L * 3600L);
         buffEnd.put(player.getUniqueId(), end);
