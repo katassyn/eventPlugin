@@ -2,6 +2,7 @@ name: eventPlugin
 version: '1.0-SNAPSHOT'
 main: org.maks.eventPlugin.EventPlugin
 api-version: '1.20'
+# Ensure this plugin loads after MythicMobs
 softdepend: [MythicMobs]
 commands:
   event:
