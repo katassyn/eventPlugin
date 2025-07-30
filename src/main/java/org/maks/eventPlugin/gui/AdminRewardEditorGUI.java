@@ -1,19 +1,24 @@
 package org.maks.eventPlugin.gui;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.maks.eventPlugin.EventPlugin;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.eventsystem.Reward;
 
@@ -59,12 +64,14 @@ public class AdminRewardEditorGUI implements Listener {
     }
 
     private static class Session {
-        enum Stage { ADD_ITEMS, SET_PROGRESS }
-        Stage stage;
+        enum Stage { NONE, ADD_ITEMS, SET_PROGRESS }
+        Stage stage = Stage.NONE;
         Inventory inventory;
         List<ItemStack> rewards = new ArrayList<>();
         List<Integer> progress = new ArrayList<>();
         EventManager eventManager;
+        // Slot being edited when player is typing a value in chat
+        Integer pendingInputSlot = null;
     }
 
     public AdminRewardEditorGUI() {
@@ -78,6 +85,21 @@ public class AdminRewardEditorGUI implements Listener {
         // Use custom InventoryHolder instead of player
         RewardItemsHolder holder = new RewardItemsHolder(session);
         Inventory inv = Bukkit.createInventory(holder, 27, "Reward Items");
+        
+        // Load existing rewards from the database
+        List<Reward> existingRewards = manager.getRewards();
+        if (!existingRewards.isEmpty()) {
+            // Store rewards and their progress values in the session
+            for (int i = 0; i < existingRewards.size() && i < 26; i++) {
+                Reward reward = existingRewards.get(i);
+                session.rewards.add(reward.item().clone());
+                session.progress.add(reward.requiredProgress());
+                
+                // Display the reward in the GUI
+                inv.setItem(i, reward.item().clone());
+            }
+            player.sendMessage(ChatColor.GREEN + "Loaded " + existingRewards.size() + " existing rewards.");
+        }
         
         ItemStack next = new ItemStack(Material.LIME_WOOL);
         ItemMeta meta = next.getItemMeta();
@@ -97,11 +119,20 @@ public class AdminRewardEditorGUI implements Listener {
         RewardProgressHolder holder = new RewardProgressHolder(session);
         Inventory inv = Bukkit.createInventory(holder, rows * 9, "Reward Progress");
         
-        session.progress = new ArrayList<>(Collections.nCopies(session.rewards.size(), 0));
+        // Make sure progress list has the same size as rewards list
+        while (session.progress.size() < session.rewards.size()) {
+            session.progress.add(0); // Add default progress for any missing entries
+        }
+        
         for (int i = 0; i < session.rewards.size(); i++) {
             ItemStack item = session.rewards.get(i).clone();
             ItemMeta meta = item.getItemMeta();
-            meta.setLore(List.of("Required: 0", "Left/Right click to edit"));
+            int progressValue = session.progress.get(i);
+            meta.setLore(List.of(
+                "Required: " + progressValue,
+                "Left/Right click to edit ±100",
+                "Shift-Left click to type exact value"
+            ));
             item.setItemMeta(meta);
             inv.setItem(i, item);
         }
@@ -136,17 +167,56 @@ public class AdminRewardEditorGUI implements Listener {
             if (clicked != null && clicked.equals(topInventory)) {
                 // interacting with our GUI
                 event.setCancelled(true);
+                
                 if (slot == 26) {
+                    // Clear existing rewards list but keep the progress values
+                    List<Integer> existingProgress = new ArrayList<>(session.progress);
+                    List<ItemStack> existingRewards = new ArrayList<>(session.rewards);
+                    session.rewards.clear();
+                    
+                    // Add all items from the inventory to the rewards list
+                    Map<ItemStack, Integer> slotMap = new HashMap<>();
                     for (int i = 0; i < 26; i++) {
                         ItemStack it = session.inventory.getItem(i);
                         if (it != null && it.getType() != Material.AIR) {
                             session.rewards.add(it.clone());
+                            
+                            // Check if this is an existing reward to preserve its progress
+                            for (int j = 0; j < existingRewards.size(); j++) {
+                                if (existingRewards.get(j).isSimilar(it)) {
+                                    slotMap.put(it, j);
+                                    break;
+                                }
+                            }
                         }
                     }
+                    
+                    // Rebuild the progress list to match the new rewards list
+                    session.progress.clear();
+                    for (ItemStack reward : session.rewards) {
+                        Integer existingIndex = slotMap.get(reward);
+                        if (existingIndex != null && existingIndex < existingProgress.size()) {
+                            session.progress.add(existingProgress.get(existingIndex));
+                        } else {
+                            session.progress.add(0); // Default progress for new rewards
+                        }
+                    }
+                    
                     openProgressStage(player, session);
                 } else if (slot < 26) {
-                    // allow placing/removing reward items
-                    event.setCancelled(false);
+                    // Handle right-click to remove items
+                    if (event.getClick() == ClickType.RIGHT) {
+                        ItemStack item = topInventory.getItem(slot);
+                        if (item != null && item.getType() != Material.AIR) {
+                            // Remove the item
+                            topInventory.setItem(slot, null);
+                            player.sendMessage(ChatColor.YELLOW + "Removed reward item.");
+                            event.setCancelled(true);
+                        }
+                    } else {
+                        // Allow placing/removing reward items with other click types
+                        event.setCancelled(false);
+                    }
                 }
             } else {
                 // player inventory interaction
@@ -195,6 +265,16 @@ public class AdminRewardEditorGUI implements Listener {
                 ItemStack item = topInventory.getItem(rawSlot);
                 if (item == null) return;
                 
+                // 1) SHIFT-LEFT → aktywuj wpisywanie liczby
+                if (event.getClick() == ClickType.SHIFT_LEFT) {
+                    session.pendingInputSlot = rawSlot;
+                    player.closeInventory();
+                    player.sendMessage(ChatColor.YELLOW + "Wpisz w czacie wymaganą wartość dla slotu #" 
+                                     + rawSlot + ":");
+                    return;
+                }
+                
+                // 2) zwykłe LEFT/RIGHT – inkrementacja po 100
                 int prog = session.progress.get(rawSlot);
                 if (event.getClick() == ClickType.LEFT) {
                     prog += 100;
@@ -208,7 +288,8 @@ public class AdminRewardEditorGUI implements Listener {
                 ItemMeta meta = item.getItemMeta();
                 meta.setLore(List.of(
                     "Required: " + prog,
-                    "Left/Right click to edit"
+                    "Left/Right click to edit ±100",
+                    "Shift-Left click to type exact value"
                 ));
                 item.setItemMeta(meta);
                 // odświeżamy GUI
@@ -273,9 +354,67 @@ public class AdminRewardEditorGUI implements Listener {
         Inventory inventory = event.getInventory();
         InventoryHolder holder = inventory.getHolder();
         
-        // Only remove the session if it's one of our GUIs
+        // Only remove the session if it's one of our GUIs and not waiting for chat input
         if (holder instanceof RewardItemsHolder || holder instanceof RewardProgressHolder) {
-            sessions.remove(event.getPlayer().getUniqueId());
+            UUID playerId = event.getPlayer().getUniqueId();
+            Session session = sessions.get(playerId);
+            
+            // Don't remove session if waiting for chat input
+            if (session != null && session.pendingInputSlot != null) {
+                return;
+            }
+            
+            sessions.remove(playerId);
         }
+    }
+    
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null
+            || session.stage != Session.Stage.SET_PROGRESS
+            || session.pendingInputSlot == null) {
+            return;
+        }
+
+        event.setCancelled(true);  // nie wyświetlamy w czacie
+
+        String msg = event.getMessage().trim();
+        int value;
+        try {
+            value = Integer.parseInt(msg);
+            if (value < 0) {
+                player.sendMessage(ChatColor.RED + "Wartość nie może być ujemna. Spróbuj ponownie:");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            player.sendMessage(ChatColor.RED + "To nie jest prawidłowa liczba. Spróbuj ponownie:");
+            return;
+        }
+
+        int slot = session.pendingInputSlot;
+        session.progress.set(slot, value);
+        session.pendingInputSlot = null;
+        player.sendMessage(ChatColor.GREEN
+            + "Ustawiono postęp w slocie #" + slot + " na " + value + ".");
+
+        // ponowne otwarcie GUI na głównym wątku
+        Bukkit.getScheduler().runTask(JavaPlugin.getProvidingPlugin(AdminRewardEditorGUI.class), () -> {
+            // odśwież lore w itemach
+            ItemStack item = session.inventory.getItem(slot);
+            if (item != null) {
+                ItemMeta meta = item.getItemMeta();
+                meta.setLore(List.of(
+                    "Required: " + value,
+                    "Left/Right click to edit ±100",
+                    "Shift-Left click to type exact value"
+                ));
+                item.setItemMeta(meta);
+                session.inventory.setItem(slot, item);
+            }
+            // otwórz GUI
+            player.openInventory(session.inventory);
+        });
     }
 }
