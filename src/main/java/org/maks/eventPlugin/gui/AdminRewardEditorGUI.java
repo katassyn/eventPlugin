@@ -322,6 +322,30 @@ public class AdminRewardEditorGUI implements Listener {
                 }
             }
         }
+    }
+    
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        // Check if the top inventory has our custom holder
+        Inventory topInventory = event.getView().getTopInventory();
+        InventoryHolder holder = topInventory.getHolder();
+        
+        // Only process if we have a RewardProgressHolder
+        if (holder instanceof RewardProgressHolder) {
+            RewardProgressHolder customHolder = (RewardProgressHolder) holder;
+            Session session = customHolder.getSession();
+            
+            if (session.stage != Session.Stage.SET_PROGRESS) return;
+            
+            // jeśli jakikolwiek raw slot jest w topInventory, blokujemy cały drag
+            for (int rawSlot : event.getRawSlots()) {
+                if (rawSlot < topInventory.getSize()) {
+
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
         event.setCancelled(false);
     }
 
