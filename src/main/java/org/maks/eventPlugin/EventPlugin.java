@@ -42,6 +42,7 @@ public final class EventPlugin extends JavaPlugin {
         buffManager = new BuffManager(databaseManager);
         progressGUI = new PlayerProgressGUI();
         rewardGUI = new AdminRewardEditorGUI(this);
+
         loadActiveEvents();
         loadConfiguredEvents();
 
@@ -55,7 +56,7 @@ public final class EventPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(rewardGUI, this);
         PluginCommand cmd = getCommand("event");
         if (cmd != null) {
-            cmd.setExecutor(new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI));
+            cmd.setExecutor(new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI, configManager));
         } else {
             Bukkit.getLogger().warning("Event command not found in plugin.yml");
         }
