@@ -24,8 +24,13 @@ import org.maks.eventPlugin.eventsystem.Reward;
 
 import java.util.*;
 
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+
 public class AdminRewardEditorGUI implements Listener {
     private final Map<UUID, Session> sessions = new HashMap<>();
+    private final JavaPlugin plugin;
 
     // Custom InventoryHolder for Reward Items GUI
     public class RewardItemsHolder implements InventoryHolder {
@@ -70,11 +75,12 @@ public class AdminRewardEditorGUI implements Listener {
         List<ItemStack> rewards = new ArrayList<>();
         List<Integer> progress = new ArrayList<>();
         EventManager eventManager;
-        // Slot being edited when player is typing a value in chat
-        Integer pendingInputSlot = null;
+        Integer inputSlot;
+
     }
 
-    public AdminRewardEditorGUI() {
+    public AdminRewardEditorGUI(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
 
     public void open(Player player, EventManager manager) {
@@ -221,6 +227,9 @@ public class AdminRewardEditorGUI implements Listener {
             } else {
                 // player inventory interaction
                 event.setCancelled(false);
+            } else if (slot >= session.inventory.getSize()) {
+                // allow taking from player inventory
+                event.setCancelled(false);
             }
         }
     }
@@ -257,95 +266,70 @@ public class AdminRewardEditorGUI implements Listener {
                 player.sendMessage("Rewards saved.");
                 player.closeInventory();
                 sessions.remove(player.getUniqueId());
-                return;
-            }
-            
-            // – edycja progresu dla każdego reward slotu 0..(n-1)
-            if (rawSlot >= 0 && rawSlot < session.rewards.size()) {
-                ItemStack item = topInventory.getItem(rawSlot);
-                if (item == null) return;
-                
-                // 1) SHIFT-LEFT → aktywuj wpisywanie liczby
-                if (event.getClick() == ClickType.SHIFT_LEFT) {
-                    session.pendingInputSlot = rawSlot;
-                    player.closeInventory();
-                    player.sendMessage(ChatColor.YELLOW + "Wpisz w czacie wymaganą wartość dla slotu #" 
-                                     + rawSlot + ":");
-                    return;
-                }
-                
-                // 2) zwykłe LEFT/RIGHT – inkrementacja po 100
-                int prog = session.progress.get(rawSlot);
-                if (event.getClick() == ClickType.LEFT) {
-                    prog += 100;
-                } else if (event.getClick() == ClickType.RIGHT) {
-                    prog = Math.max(0, prog - 100);
+            } else if (slot < session.rewards.size()) {
+                if (event.isShiftClick() && event.isRightClick()) {
+                    session.inputSlot = slot;
+                    player.sendMessage("Enter required progress in chat:");
                 } else {
-                    return;
+                    int prog = session.progress.get(slot);
+                    if (event.isLeftClick()) prog += 100;
+                    else if (event.isRightClick()) prog = Math.max(0, prog - 100);
+                    session.progress.set(slot, prog);
+                    ItemStack item = session.inventory.getItem(slot);
+                    if (item != null) {
+                        ItemMeta meta = item.getItemMeta();
+                        meta.setLore(List.of("Required: " + prog, "Left/Right click to edit", "Shift-right click to type"));
+                        item.setItemMeta(meta);
+                        session.inventory.setItem(slot, item);
+                    }
+
                 }
-                session.progress.set(rawSlot, prog);
-                
-                ItemMeta meta = item.getItemMeta();
-                meta.setLore(List.of(
-                    "Required: " + prog,
-                    "Left/Right click to edit ±100",
-                    "Shift-Left click to type exact value"
-                ));
-                item.setItemMeta(meta);
-                // odświeżamy GUI
-                topInventory.setItem(rawSlot, item);
             }
         }
     }
-
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
-        // Check if the top inventory has our custom holder
-        Inventory topInventory = event.getView().getTopInventory();
-        InventoryHolder holder = topInventory.getHolder();
-        
-        // Only process if we have a RewardItemsHolder
-        if (holder instanceof RewardItemsHolder) {
-            RewardItemsHolder customHolder = (RewardItemsHolder) holder;
-            Session session = customHolder.getSession();
-            
-            if (session.stage != Session.Stage.ADD_ITEMS) return;
-            
-            // Prevent dragging items in or out of the GUI
-            event.setCancelled(true);
-            
-            // Check if any dragged slots are in our GUI
-            for (int raw : event.getRawSlots()) {
-                if (raw < topInventory.getSize()) {
-                    event.setCancelled(true);
-                    break;
-                }
+        Player player = (Player) event.getWhoClicked();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null || session.stage != Session.Stage.ADD_ITEMS) return;
+        if (!event.getView().getTopInventory().equals(session.inventory)) return;
+        for (int slot : event.getRawSlots()) {
+            if (slot >= 26) {
+                event.setCancelled(true);
+                return;
             }
         }
+        event.setCancelled(false);
     }
-    
+
     @EventHandler
-    public void onInventoryDrag(InventoryDragEvent event) {
-        // Check if the top inventory has our custom holder
-        Inventory topInventory = event.getView().getTopInventory();
-        InventoryHolder holder = topInventory.getHolder();
-        
-        // Only process if we have a RewardProgressHolder
-        if (holder instanceof RewardProgressHolder) {
-            RewardProgressHolder customHolder = (RewardProgressHolder) holder;
-            Session session = customHolder.getSession();
-            
-            if (session.stage != Session.Stage.SET_PROGRESS) return;
-            
-            // jeśli jakikolwiek raw slot jest w topInventory, blokujemy cały drag
-            for (int rawSlot : event.getRawSlots()) {
-                if (rawSlot < topInventory.getSize()) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
+    public void onChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null || session.inputSlot == null) return;
+        event.setCancelled(true);
+        int slot = session.inputSlot;
+        session.inputSlot = null;
+        int value;
+        try {
+            value = Integer.parseInt(event.getMessage());
+            if (value < 0) value = 0;
+        } catch (NumberFormatException ex) {
+            player.sendMessage("§cInvalid number");
+            return;
         }
+        int index = slot;
+        session.progress.set(index, value);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            ItemStack item = session.inventory.getItem(index);
+            if (item != null) {
+                ItemMeta meta = item.getItemMeta();
+                meta.setLore(List.of("Required: " + value, "Left/Right click to edit", "Shift-right click to type"));
+                item.setItemMeta(meta);
+                session.inventory.setItem(index, item);
+            }
+        });
     }
 
     @EventHandler
