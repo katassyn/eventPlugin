@@ -15,8 +15,13 @@ import org.maks.eventPlugin.eventsystem.Reward;
 
 import java.util.*;
 
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+
 public class AdminRewardEditorGUI implements Listener {
     private final Map<UUID, Session> sessions = new HashMap<>();
+    private final JavaPlugin plugin;
 
     private static class Session {
         enum Stage { ADD_ITEMS, SET_PROGRESS }
@@ -25,9 +30,11 @@ public class AdminRewardEditorGUI implements Listener {
         List<ItemStack> rewards = new ArrayList<>();
         List<Integer> progress = new ArrayList<>();
         EventManager eventManager;
+        Integer inputSlot;
     }
 
-    public AdminRewardEditorGUI() {
+    public AdminRewardEditorGUI(JavaPlugin plugin) {
+        this.plugin = plugin;
     }
 
     public void open(Player player, EventManager manager) {
@@ -85,6 +92,9 @@ public class AdminRewardEditorGUI implements Listener {
             } else if (slot < 26) {
                 // allow placing/removing items
                 event.setCancelled(false);
+            } else if (slot >= session.inventory.getSize()) {
+                // allow taking from player inventory
+                event.setCancelled(false);
             }
         } else if (session.stage == Session.Stage.SET_PROGRESS) {
             if (slot == session.inventory.getSize() - 1) {
@@ -98,19 +108,68 @@ public class AdminRewardEditorGUI implements Listener {
                 player.closeInventory();
                 sessions.remove(player.getUniqueId());
             } else if (slot < session.rewards.size()) {
-                int prog = session.progress.get(slot);
-                if (event.isLeftClick()) prog += 100;
-                else if (event.isRightClick()) prog = Math.max(0, prog - 100);
-                session.progress.set(slot, prog);
-                ItemStack item = session.inventory.getItem(slot);
-                if (item != null) {
-                    ItemMeta meta = item.getItemMeta();
-                    meta.setLore(List.of("Required: " + prog, "Left/Right click to edit"));
-                    item.setItemMeta(meta);
-                    session.inventory.setItem(slot, item);
+                if (event.isShiftClick() && event.isRightClick()) {
+                    session.inputSlot = slot;
+                    player.sendMessage("Enter required progress in chat:");
+                } else {
+                    int prog = session.progress.get(slot);
+                    if (event.isLeftClick()) prog += 100;
+                    else if (event.isRightClick()) prog = Math.max(0, prog - 100);
+                    session.progress.set(slot, prog);
+                    ItemStack item = session.inventory.getItem(slot);
+                    if (item != null) {
+                        ItemMeta meta = item.getItemMeta();
+                        meta.setLore(List.of("Required: " + prog, "Left/Right click to edit", "Shift-right click to type"));
+                        item.setItemMeta(meta);
+                        session.inventory.setItem(slot, item);
+                    }
                 }
             }
         }
+    }
+
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        Player player = (Player) event.getWhoClicked();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null || session.stage != Session.Stage.ADD_ITEMS) return;
+        if (!event.getView().getTopInventory().equals(session.inventory)) return;
+        for (int slot : event.getRawSlots()) {
+            if (slot >= 26) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        event.setCancelled(false);
+    }
+
+    @EventHandler
+    public void onChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null || session.inputSlot == null) return;
+        event.setCancelled(true);
+        int slot = session.inputSlot;
+        session.inputSlot = null;
+        int value;
+        try {
+            value = Integer.parseInt(event.getMessage());
+            if (value < 0) value = 0;
+        } catch (NumberFormatException ex) {
+            player.sendMessage("§cInvalid number");
+            return;
+        }
+        int index = slot;
+        session.progress.set(index, value);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            ItemStack item = session.inventory.getItem(index);
+            if (item != null) {
+                ItemMeta meta = item.getItemMeta();
+                meta.setLore(List.of("Required: " + value, "Left/Right click to edit", "Shift-right click to type"));
+                item.setItemMeta(meta);
+                session.inventory.setItem(index, item);
+            }
+        });
     }
 
     @EventHandler
