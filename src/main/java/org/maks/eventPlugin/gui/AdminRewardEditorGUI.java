@@ -70,8 +70,7 @@ public class AdminRewardEditorGUI implements Listener {
         List<ItemStack> rewards = new ArrayList<>();
         List<Integer> progress = new ArrayList<>();
         EventManager eventManager;
-        // Slot being edited when player is typing a value in chat
-        Integer pendingInputSlot = null;
+        Integer pendingInputSlot; // Used for chat input
     }
 
     public AdminRewardEditorGUI(JavaPlugin plugin) {
@@ -219,6 +218,9 @@ public class AdminRewardEditorGUI implements Listener {
                         event.setCancelled(false);
                     }
                 }
+            } else if (slot >= session.inventory.getSize()) {
+                // allow taking from player inventory
+                event.setCancelled(false);
             } else {
                 // player inventory interaction
                 event.setCancelled(false);
@@ -281,9 +283,8 @@ public class AdminRewardEditorGUI implements Listener {
                     prog += 100;
                 } else if (event.getClick() == ClickType.RIGHT) {
                     prog = Math.max(0, prog - 100);
-                } else {
-                    return;
                 }
+                
                 session.progress.set(rawSlot, prog);
                 
                 ItemMeta meta = item.getItemMeta();
@@ -298,7 +299,6 @@ public class AdminRewardEditorGUI implements Listener {
             }
         }
     }
-
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
@@ -339,33 +339,15 @@ public class AdminRewardEditorGUI implements Listener {
             // jeśli jakikolwiek raw slot jest w topInventory, blokujemy cały drag
             for (int rawSlot : event.getRawSlots()) {
                 if (rawSlot < topInventory.getSize()) {
+
                     event.setCancelled(true);
                     return;
                 }
             }
         }
+        event.setCancelled(false);
     }
 
-    @EventHandler
-    public void onClose(InventoryCloseEvent event) {
-        // Check if the closed inventory has one of our custom holders
-        Inventory inventory = event.getInventory();
-        InventoryHolder holder = inventory.getHolder();
-        
-        // Only remove the session if it's one of our GUIs and not waiting for chat input
-        if (holder instanceof RewardItemsHolder || holder instanceof RewardProgressHolder) {
-            UUID playerId = event.getPlayer().getUniqueId();
-            Session session = sessions.get(playerId);
-            
-            // Don't remove session if waiting for chat input
-            if (session != null && session.pendingInputSlot != null) {
-                return;
-            }
-            
-            sessions.remove(playerId);
-        }
-    }
-    
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
@@ -415,5 +397,25 @@ public class AdminRewardEditorGUI implements Listener {
             // otwórz GUI
             player.openInventory(session.inventory);
         });
+    }
+
+    @EventHandler
+    public void onClose(InventoryCloseEvent event) {
+        // Check if the closed inventory has one of our custom holders
+        Inventory inventory = event.getInventory();
+        InventoryHolder holder = inventory.getHolder();
+        
+        // Only remove the session if it's one of our GUIs and not waiting for chat input
+        if (holder instanceof RewardItemsHolder || holder instanceof RewardProgressHolder) {
+            UUID playerId = event.getPlayer().getUniqueId();
+            Session session = sessions.get(playerId);
+            
+            // Don't remove session if waiting for chat input
+            if (session != null && session.pendingInputSlot != null) {
+                return;
+            }
+            
+            sessions.remove(playerId);
+        }
     }
 }

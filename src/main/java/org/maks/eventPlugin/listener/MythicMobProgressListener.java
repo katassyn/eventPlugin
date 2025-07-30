@@ -1,9 +1,9 @@
 package org.maks.eventPlugin.listener;
 
-import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.maks.eventPlugin.eventsystem.EventManager;
 
@@ -15,22 +15,31 @@ public class MythicMobProgressListener implements Listener {
 
     public MythicMobProgressListener(java.util.Map<String, EventManager> events, BuffManager buffManager) {
         this.events = events;
-
         this.buffManager = buffManager;
     }
 
     @EventHandler
-    public void onMobDeath(MythicMobDeathEvent event) {
-        if (!(event.getKiller() instanceof Player player)) return;
-
-        double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
-        for (EventManager manager : events.values()) {
-            manager.checkExpiry();
-            if (manager.isActive()) {
-                int amount = manager.getRandomProgress();
-                manager.addProgress(player, amount, multiplier);
+    public void onMobDeath(Event genericEvent) {
+        // Use reflection to safely check if this is a MythicMobDeathEvent
+        if (!genericEvent.getEventName().equals("MythicMobDeathEvent")) {
+            return;
+        }
+        
+        try {
+            // Get the killer using reflection
+            Object killer = genericEvent.getClass().getMethod("getKiller").invoke(genericEvent);
+            if (!(killer instanceof Player player)) return;
+            
+            double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
+            for (EventManager manager : events.values()) {
+                manager.checkExpiry();
+                if (manager.isActive()) {
+                    int amount = manager.getRandomProgress();
+                    manager.addProgress(player, amount, multiplier);
+                }
             }
-
+        } catch (Exception e) {
+            // Silently ignore reflection errors
         }
     }
 }
