@@ -11,6 +11,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.maks.eventPlugin.eventsystem.EventManager;
+import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.maks.eventPlugin.util.TimeUtil;
 
 import java.util.*;
@@ -68,6 +69,11 @@ public class PlayerProgressGUI implements Listener {
     }
 
     private final Map<UUID, Session> open = new HashMap<>();
+    private final BuffManager buffManager;
+
+    public PlayerProgressGUI(BuffManager buffManager) {
+        this.buffManager = buffManager;
+    }
 
     public void open(Player player, EventManager eventManager) {
         int progress = eventManager.getProgress(player);
@@ -114,6 +120,20 @@ public class PlayerProgressGUI implements Listener {
         info.setItemMeta(infoMeta);
         inv.setItem(53, info);
 
+        boolean attrie = buffManager.hasBuff(player);
+        ItemStack attrieItem = new ItemStack(Material.PAPER);
+        ItemMeta am = attrieItem.getItemMeta();
+        am.setDisplayName("§dAttrie bonus: " + (attrie ? "ON" : "OFF"));
+        List<String> aLore = new ArrayList<>();
+        if (attrie) {
+            aLore.add("Remaining: " + TimeUtil.formatDuration(buffManager.getRemaining(player)));
+        } else {
+            aLore.add("Not active");
+        }
+        am.setLore(aLore);
+        attrieItem.setItemMeta(am);
+        inv.setItem(45, attrieItem);
+
         Session session = new Session();
         session.inv = inv;
         session.manager = eventManager;
@@ -121,7 +141,8 @@ public class PlayerProgressGUI implements Listener {
 
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
-            int pathIndex = (int) Math.floor(reward.requiredProgress() / perSlot);
+            int pathIndex = (int) Math.ceil(reward.requiredProgress() / perSlot) - 1;
+            if (pathIndex < 0) pathIndex = 0;
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
             List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
             int slot = -1;
