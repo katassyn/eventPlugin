@@ -18,7 +18,6 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.maks.eventPlugin.EventPlugin;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.eventsystem.Reward;
 
@@ -382,7 +381,7 @@ public class AdminRewardEditorGUI implements Listener {
             + "Ustawiono postęp w slocie #" + slot + " na " + value + ".");
 
         // ponowne otwarcie GUI na głównym wątku
-        Bukkit.getScheduler().runTask(JavaPlugin.getProvidingPlugin(AdminRewardEditorGUI.class), () -> {
+        Bukkit.getScheduler().runTask(plugin, () -> {
             // odśwież lore w itemach
             ItemStack item = session.inventory.getItem(slot);
             if (item != null) {
