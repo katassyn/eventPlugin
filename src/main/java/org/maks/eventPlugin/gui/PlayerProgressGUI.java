@@ -32,31 +32,17 @@ public class PlayerProgressGUI implements Listener {
     );
 
     /**
-     * Slots that may contain rewards and a mapping from each progress slot to
-     * the neighbouring reward positions. This allows rewards to appear next to
-     * the snake-like path regardless of its orientation.
+     * Slots used to display rewards. Each entry corresponds to the adjacent
+     * progress slot at the same index in {@link #PATH_SLOTS}. The numbers were
+     * chosen so that rewards visually follow the vertical snake path rather
+     * than stacking in simple rows.
      */
-    private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
-    private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
+    private static final List<Integer> REWARD_SLOTS = List.of(
+            36, 45, 37, 46, 38, 47, 39,
+            5, 6, 15, 48, 40, 49, 24,
+            16, 7, 8, 41, 33, 50, 42, 25, 17
+    );
 
-    static {
-        for (int i = 0; i < 54; i++) {
-            if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
-        }
-        REWARD_SLOTS.remove(Integer.valueOf(53));
-        for (int i = 0; i < PATH_SLOTS.size(); i++) {
-            int slot = PATH_SLOTS.get(i);
-            int row = slot / 9;
-            int col = slot % 9;
-            for (int rSlot : REWARD_SLOTS) {
-                int rr = rSlot / 9;
-                int rc = rSlot % 9;
-                if (Math.abs(row - rr) + Math.abs(col - rc) == 1) {
-                    PATH_TO_REWARD.computeIfAbsent(i, k -> new ArrayList<>()).add(rSlot);
-                }
-            }
-        }
-    }
 
     private static class Session {
         Inventory inv;
@@ -154,12 +140,16 @@ public class PlayerProgressGUI implements Listener {
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
 
             int slot = -1;
-            List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
-            if (candidates != null) {
-                for (int c : candidates) if (usedReward.add(c)) { slot = c; break; }
+            for (int i = pathIndex; i < REWARD_SLOTS.size(); i++) {
+                int candidate = REWARD_SLOTS.get(i);
+                if (usedReward.add(candidate)) { slot = candidate; break; }
             }
             if (slot == -1) {
-                for (int c : REWARD_SLOTS) if (usedReward.add(c)) { slot = c; break; }
+                for (int i = pathIndex - 1; i >= 0; i--) {
+                    int candidate = REWARD_SLOTS.get(i);
+                    if (usedReward.add(candidate)) { slot = candidate; break; }
+                }
+
             }
             if (slot == -1) continue;
 
