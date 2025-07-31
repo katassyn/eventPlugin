@@ -38,9 +38,12 @@ public class PlayerProgressGUI implements Listener {
      * than stacking in simple rows.
      */
     private static final List<Integer> REWARD_SLOTS = List.of(
-            36, 45, 37, 46, 38, 47, 39,
-            5, 6, 15, 48, 40, 49, 24,
-            16, 7, 8, 41, 33, 50, 42, 25, 17
+            0, 2, 13, 6, 8,
+            15, 9, 11, 17,
+            18, 20, 22, 24,
+            33, 31, 29, 27,
+            36, 47, 40, 50, 51, 44
+
     );
 
 
