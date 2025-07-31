@@ -18,9 +18,9 @@ import java.util.*;
 
 public class PlayerProgressGUI implements Listener {
     /**
-     * Ordered slots representing the progress path. This layout was crafted by
-     * the original plugin author and forms a snake that winds through the GUI.
-     * Glass panes are placed on these slots to visualize the player's progress.
+     * Ordered slots representing the progress path. The numbers follow the
+     * original vertical snake that starts in the top-left corner, winds down to
+     * the bottom, then back up through subsequent columns.
      */
     private static final List<Integer> PATH_SLOTS = List.of(
             // column 1 downward
@@ -37,12 +37,14 @@ public class PlayerProgressGUI implements Listener {
             42, 43,
             // column 7 upward to finish
             34, 25, 16, 7
+
     );
 
     /**
      * Slots used to display rewards. Each entry corresponds to the adjacent
-     * progress slot at the same index in {@link #PATH_SLOTS}, ensuring that
-     * rewards follow the snake-like layout instead of stacking vertically.
+     * progress slot at the same index in {@link #PATH_SLOTS}. The numbers were
+     * chosen so that rewards visually follow the vertical snake path rather
+     * than stacking in simple rows.
      */
     private static final List<Integer> REWARD_SLOTS = List.of(
             0, 9, 18, 27, 36,
@@ -52,7 +54,9 @@ public class PlayerProgressGUI implements Listener {
             15, 22, 31, 50,
             51, 52,
             33, 24, 17, 8
+
     );
+
 
     private static class Session {
         Inventory inv;
@@ -159,6 +163,7 @@ public class PlayerProgressGUI implements Listener {
                     int candidate = REWARD_SLOTS.get(i);
                     if (usedReward.add(candidate)) { slot = candidate; break; }
                 }
+
             }
             if (slot == -1) continue;
 
