@@ -1,75 +1,56 @@
 package org.maks.eventPlugin.listener;
 
-import org.bukkit.Bukkit;
+import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Tameable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.entity.Player;
-import org.bukkit.event.entity.EntityDeathEvent;
 import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.maks.eventPlugin.eventsystem.EventManager;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Map;
 
+/**
+ * Handles progress awarding for MythicMob kills. Any Mythic mob killed by a
+ * player (directly, via projectile, or through a tamed entity) will grant
+ * progress towards all active events, such as Monster Hunter.
+ */
 public class MythicMobProgressListener implements Listener {
-    private final java.util.Map<String, EventManager> events;
+    private final Map<String, EventManager> events;
     private final BuffManager buffManager;
-    private Method isMythicMobMethod = null;
-    private Object mythicMobsAPI = null;
 
-    public MythicMobProgressListener(java.util.Map<String, EventManager> events, BuffManager buffManager) {
+    public MythicMobProgressListener(Map<String, EventManager> events, BuffManager buffManager) {
         this.events = events;
         this.buffManager = buffManager;
-        
-        // Try to get MythicMobs API using reflection
-        try {
-            Class<?> apiClass = Class.forName("io.lumine.mythic.bukkit.MythicBukkit");
-            Method getInstance = apiClass.getMethod("inst");
-            mythicMobsAPI = getInstance.invoke(null);
-            isMythicMobMethod = mythicMobsAPI.getClass().getMethod("isMythicMob", Entity.class);
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("Failed to initialize MythicMobs API: " + e.getMessage());
-        }
     }
 
     @EventHandler
-    public void onEntityDeath(EntityDeathEvent event) {
-        // If we couldn't initialize the MythicMobs API, do nothing
-        if (isMythicMobMethod == null || mythicMobsAPI == null) {
+    public void onMythicMobDeath(MythicMobDeathEvent event) {
+        Entity killerEntity = event.getKiller();
+        Player player = null;
+
+        if (killerEntity instanceof Player) {
+            player = (Player) killerEntity;
+        } else if (killerEntity instanceof Projectile projectile && projectile.getShooter() instanceof Player) {
+            player = (Player) projectile.getShooter();
+        } else if (killerEntity instanceof Tameable tameable && tameable.getOwner() instanceof Player) {
+            player = (Player) tameable.getOwner();
+        }
+
+        if (player == null) {
             return;
         }
-        
-        try {
-            // Check if the entity is a MythicMob
-            Entity entity = event.getEntity();
-            boolean isMythicMob = (boolean) isMythicMobMethod.invoke(mythicMobsAPI, entity);
-            
-            if (!isMythicMob) {
-                return;
+
+        double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
+        for (EventManager manager : events.values()) {
+            manager.checkExpiry();
+            if (manager.isActive()) {
+                int amount = manager.getRandomProgress();
+                manager.addProgress(player, amount, multiplier);
             }
-            
-            // Get the killer (only LivingEntity has getKiller method)
-            if (!(entity instanceof org.bukkit.entity.LivingEntity)) {
-                return;
-            }
-            
-            org.bukkit.entity.LivingEntity livingEntity = (org.bukkit.entity.LivingEntity) entity;
-            Player player = livingEntity.getKiller();
-            if (player == null) {
-                return;
-            }
-            
-            double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
-            for (EventManager manager : events.values()) {
-                manager.checkExpiry();
-                if (manager.isActive()) {
-                    int amount = manager.getRandomProgress();
-                    manager.addProgress(player, amount, multiplier);
-                }
-            }
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("Error processing MythicMob death: " + e.getMessage());
         }
     }
 }
+
