@@ -43,6 +43,7 @@ public class PlayerProgressGUI implements Listener {
             16, 7, 8, 41, 33, 50, 42, 25, 17
     );
 
+
     private static class Session {
         Inventory inv;
         EventManager manager;
@@ -148,6 +149,7 @@ public class PlayerProgressGUI implements Listener {
                     int candidate = REWARD_SLOTS.get(i);
                     if (usedReward.add(candidate)) { slot = candidate; break; }
                 }
+
             }
             if (slot == -1) continue;
 
