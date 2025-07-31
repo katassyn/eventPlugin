@@ -265,24 +265,43 @@ public class EventManager {
         }
     }
 
+    private void resetProgress() {
+        progressMap.clear();
+        claimedMap.clear();
+        try (var conn = database.getConnection();
+             var ps = conn.prepareStatement("DELETE FROM event_progress WHERE event_id=?")) {
+            ps.setString(1, eventId);
+            ps.executeUpdate();
+        } catch (SQLException ignored) {
+        }
+        try (var conn = database.getConnection();
+             var ps = conn.prepareStatement("DELETE FROM event_claimed WHERE event_id=?")) {
+            ps.setString(1, eventId);
+            ps.executeUpdate();
+        } catch (SQLException ignored) {
+        }
+    }
+
     public void start(String name, String description, int maxProgress, long durationSeconds) {
+        resetProgress();
         this.name = name;
         this.description = description;
         this.maxProgress = maxProgress;
-        this.endTime = Instant.now().plusSeconds(durationSeconds).toEpochMilli();
+        this.endTime = durationSeconds > 0 ? Instant.now().plusSeconds(durationSeconds).toEpochMilli() : 0L;
         this.active = true;
         saveEvent();
     }
 
     public void stop() {
         this.active = false;
+        this.endTime = 0L;
+        resetProgress();
         saveEvent();
     }
 
     public void checkExpiry() {
         if (active && endTime > 0 && Instant.now().toEpochMilli() >= endTime) {
-            active = false;
-            saveEvent();
+            stop();
         }
     }
 
