@@ -18,35 +18,45 @@ import java.util.*;
 
 public class PlayerProgressGUI implements Listener {
     /**
-     * Ordered slots representing the progress path. This layout was crafted by
-     * the original plugin author and forms a snake that winds through the GUI.
-     * Glass panes are placed on these slots to visualize the player's progress.
+     * Ordered slots representing the progress path. The numbers follow the
+     * original vertical snake that starts in the top-left corner, winds down to
+     * the bottom, then back up through subsequent columns.
      */
     private static final List<Integer> PATH_SLOTS = List.of(
-            // row 0 (left → right)
-            1, 3, 4, 5, 7,
-            // row 1 (right → left)
-            16, 14, 12, 10,
-            // row 2 (left → right)
-            19, 21, 23, 25,
-            // row 3 (right → left)
-            34, 32, 30, 28,
-            // row 4 (left → right)
-            37, 38, 39, 41, 42, 43
+            0, 9, 18, 27,
+            28, 19, 10, 1,
+            2, 11, 20, 29,
+            30, 21, 12, 3,
+            4, 13, 22, 31,
+            32, 23, 14
     );
 
     /**
-     * Slots used to display rewards. Each entry corresponds to the adjacent
-     * progress slot at the same index in {@link #PATH_SLOTS}, ensuring that
-     * rewards follow the snake-like layout instead of stacking vertically.
+     * Slots that may contain rewards and a mapping from each progress slot to
+     * the neighbouring reward positions. This allows rewards to appear next to
+     * the snake-like path regardless of its orientation.
      */
-    private static final List<Integer> REWARD_PATH = List.of(
-            0, 2, 13, 6, 8,
-            15, 9, 11, 17,
-            18, 20, 22, 24,
-            33, 31, 29, 27,
-            36, 47, 40, 50, 51, 44
-    );
+    private static final List<Integer> REWARD_SLOTS = new ArrayList<>();
+    private static final Map<Integer, List<Integer>> PATH_TO_REWARD = new HashMap<>();
+
+    static {
+        for (int i = 0; i < 54; i++) {
+            if (!PATH_SLOTS.contains(i)) REWARD_SLOTS.add(i);
+        }
+        REWARD_SLOTS.remove(Integer.valueOf(53));
+        for (int i = 0; i < PATH_SLOTS.size(); i++) {
+            int slot = PATH_SLOTS.get(i);
+            int row = slot / 9;
+            int col = slot % 9;
+            for (int rSlot : REWARD_SLOTS) {
+                int rr = rSlot / 9;
+                int rc = rSlot % 9;
+                if (Math.abs(row - rr) + Math.abs(col - rc) == 1) {
+                    PATH_TO_REWARD.computeIfAbsent(i, k -> new ArrayList<>()).add(rSlot);
+                }
+            }
+        }
+    }
 
     private static class Session {
         Inventory inv;
@@ -131,7 +141,6 @@ public class PlayerProgressGUI implements Listener {
         session.inv = inv;
         session.manager = eventManager;
 
-
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
             // Map required progress to the index of the progress path using
@@ -145,15 +154,12 @@ public class PlayerProgressGUI implements Listener {
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
 
             int slot = -1;
-            for (int i = pathIndex; i < REWARD_PATH.size(); i++) {
-                int candidate = REWARD_PATH.get(i);
-                if (usedReward.add(candidate)) { slot = candidate; break; }
+            List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
+            if (candidates != null) {
+                for (int c : candidates) if (usedReward.add(c)) { slot = c; break; }
             }
             if (slot == -1) {
-                for (int i = pathIndex - 1; i >= 0; i--) {
-                    int candidate = REWARD_PATH.get(i);
-                    if (usedReward.add(candidate)) { slot = candidate; break; }
-                }
+                for (int c : REWARD_SLOTS) if (usedReward.add(c)) { slot = c; break; }
             }
             if (slot == -1) continue;
 
