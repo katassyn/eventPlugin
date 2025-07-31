@@ -11,6 +11,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -350,28 +351,39 @@ public class AdminRewardEditorGUI implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
-        Player player = event.getPlayer();
+        if (processChat(event.getPlayer(), event.getMessage())) {
+            event.setCancelled(true);
+            event.getRecipients().clear();
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onAsyncChat(AsyncChatEvent event) {
+        var msg = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.message());
+        if (processChat(event.getPlayer(), msg)) {
+            event.setCancelled(true);
+        }
+    }
+
+    private boolean processChat(Player player, String message) {
         Session session = sessions.get(player.getUniqueId());
         if (session == null
             || session.stage != Session.Stage.SET_PROGRESS
             || session.pendingInputSlot == null) {
-            return;
+            return false;
         }
 
-        event.setCancelled(true);  // nie wyświetlamy w czacie
-        event.getRecipients().clear();
-
-        String msg = event.getMessage().trim();
+        String msg = message.trim();
         int value;
         try {
             value = Integer.parseInt(msg);
             if (value < 0) {
                 player.sendMessage(ChatColor.RED + "Wartość nie może być ujemna. Spróbuj ponownie:");
-                return;
+                return true;
             }
         } catch (NumberFormatException e) {
             player.sendMessage(ChatColor.RED + "To nie jest prawidłowa liczba. Spróbuj ponownie:");
-            return;
+            return true;
         }
 
         final int slot = session.pendingInputSlot;
@@ -380,9 +392,7 @@ public class AdminRewardEditorGUI implements Listener {
         player.sendMessage(ChatColor.GREEN
             + "Ustawiono postęp w slocie #" + slot + " na " + value + ".");
 
-        // ponowne otwarcie GUI na głównym wątku
         Bukkit.getScheduler().runTask(plugin, () -> {
-            // odśwież lore w itemach
             ItemStack item = session.inventory.getItem(slot);
             if (item != null) {
                 ItemMeta meta = item.getItemMeta();
@@ -394,9 +404,9 @@ public class AdminRewardEditorGUI implements Listener {
                 item.setItemMeta(meta);
                 session.inventory.setItem(slot, item);
             }
-            // otwórz GUI
             player.openInventory(session.inventory);
         });
+        return true;
     }
 
     @EventHandler
