@@ -83,8 +83,11 @@ public class PlayerProgressGUI implements Listener {
                         shortNumber(progress) + "/" + shortNumber(max) + " - " +
                         TimeUtil.formatDuration(eventManager.getTimeRemaining()));
 
-        double perSlot = (double) max / PATH_SLOTS.size();
-        int filled = (int) Math.floor(progress / perSlot);
+        // Using purely integer math avoids floating point rounding issues when
+        // calculating which progress slots should be filled. This ensures that
+        // both the progress glass panes and reward markers line up perfectly
+        // with the configured maximum progress value.
+        int filled = (int) ((long) progress * PATH_SLOTS.size() / Math.max(1, max));
 
         ItemStack filledItem = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
         ItemStack emptyItem = new ItemStack(Material.WHITE_STAINED_GLASS_PANE);
@@ -141,7 +144,11 @@ public class PlayerProgressGUI implements Listener {
 
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
-            int pathIndex = (int) Math.ceil(reward.requiredProgress() / perSlot) - 1;
+            // Map required progress to the index of the progress path using
+            // integer arithmetic to avoid rounding errors. The formula maps the
+            // range [0, max] to [0, PATH_SLOTS.size()-1].
+            int pathIndex = (int) (((long) reward.requiredProgress() * PATH_SLOTS.size() - 1)
+                    / Math.max(1, max));
             if (pathIndex < 0) pathIndex = 0;
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
             List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
