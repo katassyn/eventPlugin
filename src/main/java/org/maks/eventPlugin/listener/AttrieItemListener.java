@@ -13,6 +13,7 @@ import org.maks.eventPlugin.eventsystem.BuffManager;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.block.Action;
+import org.bukkit.ChatColor;
 
 public class AttrieItemListener implements Listener {
     private final BuffManager buffManager;
@@ -33,7 +34,20 @@ public class AttrieItemListener implements Listener {
         if (item == null || item.getType() == Material.AIR) return;
 
         ItemMeta meta = item.getItemMeta();
-        if (meta != null && meta.getPersistentDataContainer().has(key, PersistentDataType.INTEGER)) {
+        boolean attrie = false;
+        if (meta != null) {
+            // Detect our attrie item either via persistent data or by name
+            // containing "event attrie" without colour codes.
+            if (meta.getPersistentDataContainer().has(key, PersistentDataType.INTEGER)) {
+                attrie = true;
+            } else if (meta.hasDisplayName()) {
+                String plain = ChatColor.stripColor(meta.getDisplayName());
+                if (plain != null && plain.toLowerCase().contains("event attrie")) {
+                    attrie = true;
+                }
+            }
+        }
+        if (attrie) {
             event.setCancelled(true);
 
             ItemStack updated = item.clone();

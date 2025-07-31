@@ -113,7 +113,7 @@ public final class EventPlugin extends JavaPlugin {
                 manager.setDropChances(map);
             }
 
-            if (active) {
+            if (active && !manager.isActive()) {
                 long dur = durationDays > 0 ? durationDays * 86400L : 0;
                 manager.start(name, desc, max, dur);
             }
