@@ -18,34 +18,29 @@ import java.util.*;
 
 public class PlayerProgressGUI implements Listener {
     /**
-     * Ordered slots representing the progress path. This layout was crafted by
-     * the original plugin author and forms a snake that winds through the GUI.
-     * Glass panes are placed on these slots to visualize the player's progress.
+     * Ordered slots representing the progress path. The numbers follow the
+     * original vertical snake that starts in the top-left corner, winds down to
+     * the bottom, then back up through subsequent columns.
      */
     private static final List<Integer> PATH_SLOTS = List.of(
-            // row 0 (left → right)
-            1, 3, 4, 5, 7,
-            // row 1 (right → left)
-            16, 14, 12, 10,
-            // row 2 (left → right)
-            19, 21, 23, 25,
-            // row 3 (right → left)
-            34, 32, 30, 28,
-            // row 4 (left → right)
-            37, 38, 39, 41, 42, 43
+            0, 9, 18, 27,
+            28, 19, 10, 1,
+            2, 11, 20, 29,
+            30, 21, 12, 3,
+            4, 13, 22, 31,
+            32, 23, 14
     );
 
     /**
      * Slots used to display rewards. Each entry corresponds to the adjacent
-     * progress slot at the same index in {@link #PATH_SLOTS}, ensuring that
-     * rewards follow the snake-like layout instead of stacking vertically.
+     * progress slot at the same index in {@link #PATH_SLOTS}. The numbers were
+     * chosen so that rewards visually follow the vertical snake path rather
+     * than stacking in simple rows.
      */
-    private static final List<Integer> REWARD_PATH = List.of(
-            0, 2, 13, 6, 8,
-            15, 9, 11, 17,
-            18, 20, 22, 24,
-            33, 31, 29, 27,
-            36, 47, 40, 50, 51, 44
+    private static final List<Integer> REWARD_SLOTS = List.of(
+            36, 45, 37, 46, 38, 47, 39,
+            5, 6, 15, 48, 40, 49, 24,
+            16, 7, 8, 41, 33, 50, 42, 25, 17
     );
 
     private static class Session {
@@ -131,7 +126,6 @@ public class PlayerProgressGUI implements Listener {
         session.inv = inv;
         session.manager = eventManager;
 
-
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
             // Map required progress to the index of the progress path using
@@ -145,13 +139,13 @@ public class PlayerProgressGUI implements Listener {
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
 
             int slot = -1;
-            for (int i = pathIndex; i < REWARD_PATH.size(); i++) {
-                int candidate = REWARD_PATH.get(i);
+            for (int i = pathIndex; i < REWARD_SLOTS.size(); i++) {
+                int candidate = REWARD_SLOTS.get(i);
                 if (usedReward.add(candidate)) { slot = candidate; break; }
             }
             if (slot == -1) {
                 for (int i = pathIndex - 1; i >= 0; i--) {
-                    int candidate = REWARD_PATH.get(i);
+                    int candidate = REWARD_SLOTS.get(i);
                     if (usedReward.add(candidate)) { slot = candidate; break; }
                 }
             }
