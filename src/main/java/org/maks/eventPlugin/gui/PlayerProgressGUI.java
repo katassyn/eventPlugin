@@ -151,6 +151,7 @@ public class PlayerProgressGUI implements Listener {
             // slice of the maximum progress.
             long numerator = (long) reward.requiredProgress() * PATH_SLOTS.size() + max - 1;
             int pathIndex = (int) (numerator / Math.max(1, max)) - 1;
+
             if (pathIndex < 0) pathIndex = 0;
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
             List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
