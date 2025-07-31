@@ -23,12 +23,21 @@ public class PlayerProgressGUI implements Listener {
      * the bottom, then back up through subsequent columns.
      */
     private static final List<Integer> PATH_SLOTS = List.of(
-            0, 9, 18, 27,
-            28, 19, 10, 1,
-            2, 11, 20, 29,
+            // column 1 downward
+            1, 10, 19, 28, 37,
+            // bottom row sweep to the right
+            38, 39,
+            // column 3 upward
             30, 21, 12, 3,
-            4, 13, 22, 31,
-            32, 23, 14
+            // top row across
+            4, 5,
+            // column 5 downward
+            14, 23, 32, 41,
+            // bottom row sweep
+            42, 43,
+            // column 7 upward to finish
+            34, 25, 16, 7
+
     );
 
     /**
@@ -38,11 +47,13 @@ public class PlayerProgressGUI implements Listener {
      * than stacking in simple rows.
      */
     private static final List<Integer> REWARD_SLOTS = List.of(
-            0, 2, 13, 6, 8,
-            15, 9, 11, 17,
-            18, 20, 22, 24,
-            33, 31, 29, 27,
-            36, 47, 40, 50, 51, 44
+            0, 9, 18, 27, 36,
+            47, 48,
+            29, 20, 11, 2,
+            13, 6,
+            15, 22, 31, 50,
+            51, 52,
+            33, 24, 17, 8
 
     );
 
