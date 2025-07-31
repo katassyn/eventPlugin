@@ -145,10 +145,13 @@ public class PlayerProgressGUI implements Listener {
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
             // Map required progress to the index of the progress path using
-            // integer arithmetic to avoid rounding errors. The formula maps the
-            // range [0, max] to [0, PATH_SLOTS.size()-1].
-            int pathIndex = (int) (((long) reward.requiredProgress() * PATH_SLOTS.size() - 1)
-                    / Math.max(1, max));
+            // ceiling arithmetic so that a reward for progress slightly above
+            // a threshold still appears next to the correct glass pane. This
+            // mirrors the player's view where each pane represents an equal
+            // slice of the maximum progress.
+            long numerator = (long) reward.requiredProgress() * PATH_SLOTS.size() + max - 1;
+            int pathIndex = (int) (numerator / Math.max(1, max)) - 1;
+
             if (pathIndex < 0) pathIndex = 0;
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
             List<Integer> candidates = PATH_TO_REWARD.get(pathIndex);
