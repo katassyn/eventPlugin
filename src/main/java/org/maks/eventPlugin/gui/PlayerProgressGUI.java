@@ -62,6 +62,9 @@ public class PlayerProgressGUI implements Listener {
         Inventory inv;
         EventManager manager;
         Map<Integer, Integer> rewardSlots = new HashMap<>();
+        List<String> eventIds = new ArrayList<>();
+        int currentIndex;
+        Map<String, EventManager> allEvents;
     }
 
     private static String shortNumber(int n) {
@@ -70,9 +73,14 @@ public class PlayerProgressGUI implements Listener {
 
     private final Map<UUID, Session> open = new HashMap<>();
     private final BuffManager buffManager;
+    private Map<String, EventManager> allEvents;
 
     public PlayerProgressGUI(BuffManager buffManager) {
         this.buffManager = buffManager;
+    }
+
+    public void setAllEvents(Map<String, EventManager> allEvents) {
+        this.allEvents = allEvents;
     }
 
     public void open(Player player, EventManager eventManager) {
@@ -140,6 +148,27 @@ public class PlayerProgressGUI implements Listener {
         Session session = new Session();
         session.inv = inv;
         session.manager = eventManager;
+        session.allEvents = allEvents;
+
+        // Find all active events and current index
+        if (allEvents != null) {
+            for (Map.Entry<String, EventManager> entry : allEvents.entrySet()) {
+                if (entry.getValue().isActive()) {
+                    session.eventIds.add(entry.getKey());
+                }
+            }
+            // Find current event ID
+            String currentEventId = null;
+            for (Map.Entry<String, EventManager> entry : allEvents.entrySet()) {
+                if (entry.getValue() == eventManager) {
+                    currentEventId = entry.getKey();
+                    break;
+                }
+            }
+            if (currentEventId != null) {
+                session.currentIndex = session.eventIds.indexOf(currentEventId);
+            }
+        }
 
         Set<Integer> usedReward = new HashSet<>();
         for (var reward : eventManager.getRewards()) {
@@ -188,6 +217,27 @@ public class PlayerProgressGUI implements Listener {
             session.rewardSlots.put(slot, reward.requiredProgress());
         }
 
+        // Add navigation arrows if multiple events exist
+        if (session.eventIds.size() > 1) {
+            // Previous event arrow (slot 46)
+            if (session.currentIndex > 0) {
+                ItemStack prevArrow = new ItemStack(Material.ARROW);
+                ItemMeta prevMeta = prevArrow.getItemMeta();
+                prevMeta.setDisplayName("§e← Previous Event");
+                prevArrow.setItemMeta(prevMeta);
+                inv.setItem(46, prevArrow);
+            }
+
+            // Next event arrow (slot 49)
+            if (session.currentIndex < session.eventIds.size() - 1) {
+                ItemStack nextArrow = new ItemStack(Material.ARROW);
+                ItemMeta nextMeta = nextArrow.getItemMeta();
+                nextMeta.setDisplayName("§eNext Event →");
+                nextArrow.setItemMeta(nextMeta);
+                inv.setItem(49, nextArrow);
+            }
+        }
+
         open.put(player.getUniqueId(), session);
         player.openInventory(inv);
     }
@@ -198,6 +248,30 @@ public class PlayerProgressGUI implements Listener {
         Session session = open.get(player.getUniqueId());
         if (session == null || !event.getInventory().equals(session.inv)) return;
         event.setCancelled(true);
+
+        int slot = event.getRawSlot();
+
+        // Handle navigation arrows
+        if (slot == 46 && session.currentIndex > 0) {
+            // Previous event
+            String prevEventId = session.eventIds.get(session.currentIndex - 1);
+            EventManager prevManager = session.allEvents.get(prevEventId);
+            if (prevManager != null) {
+                // Don't remove session here - let the new session overwrite it
+                open(player, prevManager);
+            }
+            return;
+        } else if (slot == 49 && session.currentIndex < session.eventIds.size() - 1) {
+            // Next event
+            String nextEventId = session.eventIds.get(session.currentIndex + 1);
+            EventManager nextManager = session.allEvents.get(nextEventId);
+            if (nextManager != null) {
+                // Don't remove session here - let the new session overwrite it
+                open(player, nextManager);
+            }
+            return;
+        }
+
         Integer req = session.rewardSlots.get(event.getRawSlot());
         if (req != null) {
             int progress = session.manager.getProgress(player);
@@ -210,22 +284,23 @@ public class PlayerProgressGUI implements Listener {
                 return;
             }
             if (session.manager.claimReward(player, req)) {
-                session.manager.getRewards().stream()
-                        .filter(r -> r.requiredProgress() == req)
-                        .findFirst()
-                        .ifPresent(r -> player.getInventory().addItem(r.item().clone()));
+                // EventManager.claimReward() already gives all rewards to the player
 
-                // Update item lore to show claimed
-                ItemStack item = event.getInventory().getItem(event.getRawSlot());
-                if (item != null) {
-                    ItemMeta meta = item.getItemMeta();
-                    if (meta != null) {
-                        meta.setLore(Arrays.asList(
-                                "Required: §6" + req + "§7 points",
-                                "§aClaimed"
-                        ));
-                        item.setItemMeta(meta);
-                        event.getInventory().setItem(event.getRawSlot(), item);
+                // Update all items with this required progress to show claimed
+                for (Map.Entry<Integer, Integer> entry : session.rewardSlots.entrySet()) {
+                    if (entry.getValue().equals(req)) {
+                        ItemStack item = event.getInventory().getItem(entry.getKey());
+                        if (item != null) {
+                            ItemMeta meta = item.getItemMeta();
+                            if (meta != null) {
+                                meta.setLore(Arrays.asList(
+                                        "Required: §6" + req + "§7 points",
+                                        "§aClaimed"
+                                ));
+                                item.setItemMeta(meta);
+                                event.getInventory().setItem(entry.getKey(), item);
+                            }
+                        }
                     }
                 }
                 player.sendMessage("§aReward claimed!");
@@ -235,6 +310,11 @@ public class PlayerProgressGUI implements Listener {
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        open.remove(event.getPlayer().getUniqueId());
+        // Only remove session if the closed inventory matches the stored session
+        // This prevents removing a new session when switching between events
+        Session session = open.get(event.getPlayer().getUniqueId());
+        if (session != null && event.getInventory().equals(session.inv)) {
+            open.remove(event.getPlayer().getUniqueId());
+        }
     }
 }

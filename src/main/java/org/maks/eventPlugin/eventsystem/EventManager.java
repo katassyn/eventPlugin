@@ -18,6 +18,7 @@ import java.time.Instant;
 public class EventManager {
     private final DatabaseManager database;
     private final String eventId;
+    private org.maks.eventPlugin.config.ConfigManager configManager;
     private boolean active;
     private int maxProgress;
     private String name;
@@ -35,6 +36,10 @@ public class EventManager {
         loadEvent();
         loadRewards();
         loadProgress();
+    }
+
+    public void setConfigManager(org.maks.eventPlugin.config.ConfigManager configManager) {
+        this.configManager = configManager;
     }
 
     public void setDropChances(Map<Integer, Double> chances) {
@@ -136,6 +141,13 @@ public class EventManager {
         if (set.contains(required)) return false;
         set.add(required);
         saveClaimed(player.getUniqueId(), required);
+
+        // Give player all rewards for this required progress
+        for (var reward : rewards) {
+            if (reward.requiredProgress() == required) {
+                player.getInventory().addItem(reward.item().clone());
+            }
+        }
         return true;
     }
 
@@ -203,7 +215,7 @@ public class EventManager {
         String data = ItemUtil.serialize(item);
         if (data == null) return;
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("REPLACE INTO event_rewards(event_id, required, item) VALUES (?,?,?)")) {
+             var ps = conn.prepareStatement("INSERT INTO event_rewards(event_id, required, item) VALUES (?,?,?)")) {
             ps.setString(1, eventId);
             ps.setInt(2, required);
             ps.setString(3, data);
@@ -297,6 +309,9 @@ public class EventManager {
         this.endTime = 0L;
         resetProgress();
         saveEvent();
+        if (configManager != null) {
+            configManager.set("events." + eventId + ".active", false);
+        }
     }
 
     public void checkExpiry() {

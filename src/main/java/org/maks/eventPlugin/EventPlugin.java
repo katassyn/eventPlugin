@@ -14,6 +14,19 @@ import org.maks.eventPlugin.gui.AdminRewardEditorGUI;
 import org.maks.eventPlugin.listener.AttrieItemListener;
 import org.maks.eventPlugin.listener.MythicMobProgressListener;
 
+import org.maks.eventPlugin.fullmoon.FullMoonManager;
+import org.maks.eventPlugin.fullmoon.gui.MapSelectionGUI;
+import org.maks.eventPlugin.fullmoon.gui.QuestGUI;
+import org.maks.eventPlugin.fullmoon.gui.Map2TransitionGUI;
+import org.maks.eventPlugin.fullmoon.listener.FullMoonMobListener;
+import org.maks.eventPlugin.fullmoon.listener.BloodVialSummonListener;
+import org.maks.eventPlugin.fullmoon.listener.CursedAmphoryListener;
+import org.maks.eventPlugin.fullmoon.listener.Map2BossListener;
+import org.maks.eventPlugin.fullmoon.integration.PouchHelper;
+import org.maks.eventPlugin.command.FullMoonCommand;
+import org.maks.eventPlugin.gui.EventsMainGUI;
+import org.maks.eventPlugin.api.EventPluginAPI;
+
 public final class EventPlugin extends JavaPlugin {
     private ConfigManager configManager;
     private DatabaseManager databaseManager;
@@ -22,11 +35,22 @@ public final class EventPlugin extends JavaPlugin {
     private PlayerProgressGUI progressGUI;
     private AdminRewardEditorGUI rewardGUI;
 
+    // Full Moon components
+    private FullMoonManager fullMoonManager;
+    private MapSelectionGUI mapSelectionGUI;
+    private QuestGUI questGUI;
+    private Map2TransitionGUI map2TransitionGUI;
+    private EventsMainGUI eventsMainGUI;
+    private org.maks.eventPlugin.fullmoon.gui.AdminQuestRewardEditorGUI adminQuestRewardGUI;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
         configManager = new ConfigManager(this);
         configManager.load();
+
+        // Initialize IngredientPouch integration
+        PouchHelper.initialize();
 
         String host = configManager.getString("database.host");
         String port = configManager.getString("database.port");
@@ -52,25 +76,105 @@ public final class EventPlugin extends JavaPlugin {
         loadActiveEvents();
         loadConfiguredEvents();
 
+        progressGUI.setAllEvents(eventManagers);
+
+        // Initialize public API
+        EventPluginAPI.initialize(eventManagers);
+        getLogger().info("EventPlugin API initialized with " + eventManagers.size() + " event(s)");
+
+        // Initialize Full Moon components
+        initializeFullMoon();
+
         if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) {
             getServer().getPluginManager().registerEvents(new MythicMobProgressListener(eventManagers, buffManager), this);
+
+            // Register Full Moon listeners if event exists
+            if (fullMoonManager != null) {
+                getServer().getPluginManager().registerEvents(new FullMoonMobListener(fullMoonManager, buffManager, map2TransitionGUI), this);
+                getServer().getPluginManager().registerEvents(new BloodVialSummonListener(fullMoonManager, configManager), this);
+                getServer().getPluginManager().registerEvents(new CursedAmphoryListener(fullMoonManager.getCursedAmphoryManager()), this);
+                getServer().getPluginManager().registerEvents(new Map2BossListener(fullMoonManager), this);
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.fullmoon.listener.Map2PlayerListener(fullMoonManager), this);
+                Bukkit.getLogger().info("[EventPlugin] Full Moon listeners registered");
+            }
         } else {
             Bukkit.getLogger().warning("MythicMobs not found - progress events disabled");
         }
         getServer().getPluginManager().registerEvents(new AttrieItemListener(this, buffManager), this);
         getServer().getPluginManager().registerEvents(progressGUI, this);
         getServer().getPluginManager().registerEvents(rewardGUI, this);
+
+        // Register Full Moon GUIs
+        if (mapSelectionGUI != null) {
+            getServer().getPluginManager().registerEvents(mapSelectionGUI, this);
+        }
+        if (questGUI != null) {
+            getServer().getPluginManager().registerEvents(questGUI, this);
+        }
+        if (map2TransitionGUI != null) {
+            getServer().getPluginManager().registerEvents(map2TransitionGUI, this);
+        }
+        if (eventsMainGUI != null) {
+            getServer().getPluginManager().registerEvents(eventsMainGUI, this);
+        }
+        if (adminQuestRewardGUI != null) {
+            getServer().getPluginManager().registerEvents(adminQuestRewardGUI, this);
+        }
+
+        // Register /event command
         PluginCommand cmd = getCommand("event");
         if (cmd != null) {
-            cmd.setExecutor(new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI, configManager));
+            EventCommand eventCommand = new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI, configManager);
+            eventCommand.setEventsMainGUI(eventsMainGUI);
+            eventCommand.setFullMoonManager(fullMoonManager); // Pass FullMoonManager for quest reset
+            cmd.setExecutor(eventCommand);
         } else {
             Bukkit.getLogger().warning("Event command not found in plugin.yml");
+        }
+
+        // Register /fullmoon command
+        PluginCommand fullMoonCmd = getCommand("fullmoon");
+        if (fullMoonCmd != null && fullMoonManager != null) {
+            fullMoonCmd.setExecutor(new FullMoonCommand(fullMoonManager, mapSelectionGUI, questGUI, adminQuestRewardGUI));
+            Bukkit.getLogger().info("[EventPlugin] Full Moon command registered");
+        }
+    }
+
+    /**
+     * Initialize Full Moon event components if the event is configured.
+     */
+    private void initializeFullMoon() {
+        EventManager fullMoonEvent = eventManagers.get("full_moon");
+        if (fullMoonEvent != null) {
+            fullMoonManager = new FullMoonManager(this, databaseManager, configManager, fullMoonEvent);
+            mapSelectionGUI = new MapSelectionGUI(this, fullMoonManager);
+            questGUI = new QuestGUI(fullMoonManager);
+            map2TransitionGUI = new Map2TransitionGUI(fullMoonManager);
+            eventsMainGUI = new EventsMainGUI(this, eventManagers, progressGUI, fullMoonManager, mapSelectionGUI, questGUI);
+            adminQuestRewardGUI = new org.maks.eventPlugin.fullmoon.gui.AdminQuestRewardEditorGUI(this, fullMoonManager.getQuestManager());
+
+            // Cleanup any leftover Map2 instances from previous server run/crash
+            fullMoonManager.getMap2InstanceManager().cleanupAll();
+            Bukkit.getLogger().info("[EventPlugin] Cleaned up any leftover Map2 instances from previous run");
+
+            Bukkit.getLogger().info("[EventPlugin] Full Moon event initialized");
+        } else {
+            Bukkit.getLogger().info("[EventPlugin] Full Moon event not found in configuration");
         }
     }
 
     @Override
     public void onDisable() {
-        if (databaseManager != null) databaseManager.close();
+        // Cleanup all Map2 instances before shutdown
+        if (fullMoonManager != null) {
+            fullMoonManager.getMap2InstanceManager().cleanupAll();
+            Bukkit.getLogger().info("[EventPlugin] Cleaned up all Map2 instances on shutdown");
+        }
+
+        // Close database connection
+        if (databaseManager != null) {
+            databaseManager.close();
+        }
     }
 
     private void loadActiveEvents() {
@@ -79,7 +183,9 @@ public final class EventPlugin extends JavaPlugin {
             try (var rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String id = rs.getString(1);
-                    eventManagers.put(id, new EventManager(databaseManager, id));
+                    EventManager manager = new EventManager(databaseManager, id);
+                    manager.setConfigManager(configManager);
+                    eventManagers.put(id, manager);
                 }
             }
         } catch (Exception ignored) {
@@ -101,6 +207,7 @@ public final class EventPlugin extends JavaPlugin {
             EventManager manager = eventManagers.get(id);
             if (manager == null) {
                 manager = new EventManager(databaseManager, id);
+                manager.setConfigManager(configManager);
                 eventManagers.put(id, manager);
             }
 

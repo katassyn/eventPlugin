@@ -38,6 +38,10 @@ public class ConfigManager {
         return config.getBoolean(path);
     }
 
+    public boolean getBoolean(String path, boolean defaultValue) {
+        return config.getBoolean(path, defaultValue);
+    }
+
     public int getInt(String path) {
         return config.getInt(path);
     }

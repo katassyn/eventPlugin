@@ -27,9 +27,83 @@ public class DatabaseManager {
     }
 
     /**
+     * Migrate existing event_rewards table to new schema with reward_id
+     */
+    private void migrateRewardsTable() {
+        try (Connection conn = getConnection();
+             var st = conn.createStatement()) {
+
+            // Check if old table exists
+            var tableRs = conn.getMetaData().getTables(null, null, "event_rewards", null);
+            boolean tableExists = tableRs.next();
+            tableRs.close();
+
+            if (!tableExists) {
+                // Table doesn't exist yet - will be created by setupTables()
+                Bukkit.getLogger().info("[EventPlugin] event_rewards table doesn't exist yet - will be created with new schema");
+                return;
+            }
+
+            // Table exists - check if it has the old schema (no reward_id column)
+            var colRs = conn.getMetaData().getColumns(null, null, "event_rewards", "reward_id");
+            boolean hasRewardId = colRs.next();
+            colRs.close();
+
+            if (!hasRewardId) {
+                // Old schema detected - migrate
+                Bukkit.getLogger().warning("[EventPlugin] ===================================");
+                Bukkit.getLogger().warning("[EventPlugin] OLD DATABASE SCHEMA DETECTED!");
+                Bukkit.getLogger().warning("[EventPlugin] Migrating event_rewards table...");
+                Bukkit.getLogger().warning("[EventPlugin] ===================================");
+
+                // Create new table with correct schema
+                st.executeUpdate("CREATE TABLE event_rewards_new(" +
+                        "reward_id INT AUTO_INCREMENT PRIMARY KEY," +
+                        "event_id VARCHAR(100)," +
+                        "required INT," +
+                        "item TEXT NOT NULL," +
+                        "INDEX(event_id))");
+
+                // Copy data from old table
+                var copyRs = st.executeQuery("SELECT COUNT(*) FROM event_rewards");
+                int oldCount = 0;
+                if (copyRs.next()) {
+                    oldCount = copyRs.getInt(1);
+                }
+                copyRs.close();
+
+                if (oldCount > 0) {
+                    st.executeUpdate("INSERT INTO event_rewards_new (event_id, required, item) " +
+                            "SELECT event_id, required, item FROM event_rewards");
+                    Bukkit.getLogger().info("[EventPlugin] Copied " + oldCount + " rewards to new table");
+                }
+
+                // Drop old table and rename new one
+                st.executeUpdate("DROP TABLE event_rewards");
+                st.executeUpdate("RENAME TABLE event_rewards_new TO event_rewards");
+
+                Bukkit.getLogger().warning("[EventPlugin] ===================================");
+                Bukkit.getLogger().warning("[EventPlugin] MIGRATION COMPLETED!");
+                Bukkit.getLogger().warning("[EventPlugin] You can now add multiple rewards");
+                Bukkit.getLogger().warning("[EventPlugin] with the same progress requirement!");
+                Bukkit.getLogger().warning("[EventPlugin] ===================================");
+            } else {
+                Bukkit.getLogger().info("[EventPlugin] event_rewards table already has new schema - no migration needed");
+            }
+        } catch (SQLException ex) {
+            Bukkit.getLogger().severe("[EventPlugin] ===================================");
+            Bukkit.getLogger().severe("[EventPlugin] MIGRATION FAILED!");
+            Bukkit.getLogger().severe("[EventPlugin] Error: " + ex.getMessage());
+            Bukkit.getLogger().severe("[EventPlugin] ===================================");
+            ex.printStackTrace();
+        }
+    }
+
+    /**
      * Create tables used by the plugin if they don't exist.
      */
     public void setupTables() {
+        migrateRewardsTable();
         try (Connection conn = getConnection();
              var st = conn.createStatement()) {
             st.executeUpdate("CREATE TABLE IF NOT EXISTS events(" +
@@ -45,10 +119,11 @@ public class DatabaseManager {
                     "progress INT NOT NULL," +
                     "PRIMARY KEY(event_id, player_uuid))");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_rewards(" +
+                    "reward_id INT AUTO_INCREMENT PRIMARY KEY," +
                     "event_id VARCHAR(100)," +
                     "required INT," +
                     "item TEXT NOT NULL," +
-                    "PRIMARY KEY(event_id, required))");
+                    "INDEX(event_id))");
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_claimed(" +
                     "event_id VARCHAR(100)," +
                     "player_uuid VARCHAR(36)," +
@@ -57,6 +132,37 @@ public class DatabaseManager {
             st.executeUpdate("CREATE TABLE IF NOT EXISTS event_buffs(" +
                     "player_uuid VARCHAR(36) PRIMARY KEY," +
                     "buff_end BIGINT NOT NULL)");
+
+            // Full Moon quest tables
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS full_moon_quest_progress(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "progress INT NOT NULL," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS full_moon_quest_completed(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS full_moon_quest_accepted(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS full_moon_quest_claimed(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+
+            // Full Moon quest rewards (similar to event_rewards)
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS full_moon_quest_rewards(" +
+                    "reward_id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "event_id VARCHAR(100)," +
+                    "quest_id INT," +
+                    "item TEXT NOT NULL," +
+                    "INDEX(event_id, quest_id))");
 
         } catch (SQLException ex) {
             Bukkit.getLogger().severe("[EventPlugin] Could not setup database tables: " + ex.getMessage());

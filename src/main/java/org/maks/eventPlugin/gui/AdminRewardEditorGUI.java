@@ -170,39 +170,38 @@ public class AdminRewardEditorGUI implements Listener {
                 event.setCancelled(true);
                 
                 if (slot == 26) {
-                    // Clear existing rewards list but keep the progress values
-                    List<Integer> existingProgress = new ArrayList<>(session.progress);
-                    List<ItemStack> existingRewards = new ArrayList<>(session.rewards);
+                    // Rebuild rewards list from GUI slots 0..25 while preserving per-occurrence progress
+                    List<Integer> oldProgress = new ArrayList<>(session.progress);
+                    List<ItemStack> oldRewards = new ArrayList<>(session.rewards);
                     session.rewards.clear();
-                    
-                    // Add all items from the inventory to the rewards list
-                    Map<ItemStack, Integer> slotMap = new HashMap<>();
+
+                    // Collect current items
                     for (int i = 0; i < 26; i++) {
                         ItemStack it = session.inventory.getItem(i);
                         if (it != null && it.getType() != Material.AIR) {
                             session.rewards.add(it.clone());
-                            
-                            // Check if this is an existing reward to preserve its progress
-                            for (int j = 0; j < existingRewards.size(); j++) {
-                                if (existingRewards.get(j).isSimilar(it)) {
-                                    slotMap.put(it, j);
-                                    break;
-                                }
+                        }
+                    }
+
+                    // Map duplicates by pairing each new item to the next unused matching old item
+                    session.progress.clear();
+                    boolean[] used = new boolean[oldRewards.size()];
+                    for (ItemStack newItem : session.rewards) {
+                        int matchedIndex = -1;
+                        for (int j = 0; j < oldRewards.size(); j++) {
+                            if (!used[j] && oldRewards.get(j).isSimilar(newItem)) {
+                                used[j] = true;
+                                matchedIndex = j;
+                                break;
                             }
                         }
-                    }
-                    
-                    // Rebuild the progress list to match the new rewards list
-                    session.progress.clear();
-                    for (ItemStack reward : session.rewards) {
-                        Integer existingIndex = slotMap.get(reward);
-                        if (existingIndex != null && existingIndex < existingProgress.size()) {
-                            session.progress.add(existingProgress.get(existingIndex));
+                        if (matchedIndex >= 0 && matchedIndex < oldProgress.size()) {
+                            session.progress.add(oldProgress.get(matchedIndex));
                         } else {
-                            session.progress.add(0); // Default progress for new rewards
+                            session.progress.add(0); // default for brand new item or moved without prior match
                         }
                     }
-                    
+
                     openProgressStage(player, session);
                 } else if (slot < 26) {
                     // Handle right-click to remove items

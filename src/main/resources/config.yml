@@ -6,7 +6,7 @@ database:
   password: pass
 
 events:
-  "1":
+  "monster_hunt":
     name: "Monster Hunt"
     active: true
     duration_days: 14
@@ -18,4 +18,145 @@ events:
       "2": 10
       "3": 3
       "5": 2
+
+  "full_moon":
+    name: "Full Moon"
+    active: false
+    duration_days: 3
+    max_progress: 15000
+    description: "The full moon rises over Warhlom! Battle werewolves and blood mages\n in this challenging event. Complete quests and venture into the Blood Moon\n arena to earn exclusive rewards!"
+
+# Full Moon Event Configuration
+full_moon:
+  # Debug mode - enables faster Cursed Amphora spawns for testing (1 minute instead of 1 hour)
+  debug: false
+
+  coordinates:
+    # Map 1 (Warhlom) - Open area coordinates for each difficulty
+    map1:
+      normal:
+        # Blood vial block that spawns Amarok
+        blood_vial_block:
+          x: -35
+          y: -60
+          z: -1182
+          world: "world"
+        # Boss spawn location (above blood vial block)
+        amarok_spawn:
+          x: -28
+          y: -61
+          z: -1174
+          world: "world"
+        # Cursed Amphora spawn location
+        cursed_amphora:
+          x: -57
+          y: -60
+          z: -1077
+          world: "world"
+      hard:
+        # Blood vial block that spawns Amarok
+        blood_vial_block:
+          x: 187
+          y: -60
+          z: -1182
+          world: "world"
+        # Boss spawn location (above blood vial block)
+        amarok_spawn:
+          x: 192
+          y: -61
+          z: -1176
+          world: "world"
+        # Cursed Amphora spawn location
+        cursed_amphora:
+          x: 165
+          y: -60
+          z: -1077
+          world: "world"
+
+  # FAWE schematic settings for Map 2 (Blood Moon Arena)
+  schematic:
+    file_name: "blood_moon_arena"
+
+    # Schematic dimensions (from 345,-64,-852 to 517,-12,-1173)
+    size:
+      x: 172
+      y: 52
+      z: 321
+
+    # Area where instances can be placed (547,-37,-863 to 1154,-44,-2100)
+    spawn_area:
+      min_x: 547
+      min_y: -37  # Spawn height (superflat world)
+      min_z: -863
+      max_x: 1154
+      max_z: -2100
+      world: "world"
+
+    # Spacing between instances (margin)
+    spacing: 100  # Blocks between each instance
+    max_instances: 4  # Maximum concurrent instances (2x2 grid)
+
+    # Scan for these blocks to spawn mobs
+    scan_blocks:
+      player_spawn: "GOLD_BLOCK"
+      mini_boss: "OBSIDIAN"
+      final_boss: "DIAMOND_BLOCK"
+      mob_spawn: "GRASS_BLOCK"
+
+  # Warp names from Essentials for Map 1
+  warps:
+    normal: "fullmoon_normal"
+    hard: "fullmoon_hard"
+
+  # Level and currency requirements
+  requirements:
+    normal:
+      level: 50
+    hard:
+      level: 75
+      ips: 15  # Entry cost for Map 1 hard mode
+
+  # Map 2 (Blood Moon Arena) entry costs
+  map2_entry_cost:
+    normal: 0  # Free after unlocking
+    hard: 30  # 30 IPs for hard arena
+
+  # Full Moon Quests Configuration
+  # Note: Quest rewards are managed through /fullmoon admin quest_rewards command
+  quests:
+    1:
+      description: "Kill 100 Werewolves"
+      target_mob: "werewolf"
+      required_kills: 100
+      order_index: 0
+
+    2:
+      description: "Defeat Amarok, First Werewolf"
+      target_mob: "amarok"
+      required_kills: 1
+      order_index: 1
+
+    3:
+      description: "Kill 500 Werewolves"
+      target_mob: "werewolf"
+      required_kills: 500
+      order_index: 2
+
+    4:
+      description: "Defeat Amarok 5 times"
+      target_mob: "amarok"
+      required_kills: 5
+      order_index: 3
+
+    5:
+      description: "Defeat Sanguis the Blood Mage"
+      target_mob: "sanguis"
+      required_kills: 1
+      order_index: 4
+
+    6:
+      description: "Defeat Sanguis 5 times (Hard)"
+      target_mob: "sanguis_hard"
+      required_kills: 5
+      order_index: 5
 

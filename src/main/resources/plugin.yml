@@ -2,9 +2,37 @@ name: eventPlugin
 version: '1.0-SNAPSHOT'
 main: org.maks.eventPlugin.EventPlugin
 api-version: '1.20'
-# Ensure this plugin loads after MythicMobs
-softdepend: [MythicMobs]
+# Ensure this plugin loads after dependencies
+softdepend: [MythicMobs, Essentials, FastAsyncWorldEdit, IngredientPouchPlugin]
 commands:
   event:
     description: Main event command
-    usage: /event <start|stop|gui|rewards>
+    usage: /event <start|stop|gui|rewards|hub>
+    permission: eventplugin.event
+  fullmoon:
+    description: Full Moon event command
+    usage: /fullmoon [gui|quests|admin]
+    permission: eventplugin.fullmoon
+
+permissions:
+  eventplugin.admin:
+    description: Admin access to all event commands
+    default: op
+  eventplugin.event:
+    description: Access to /event command
+    default: op
+  eventplugin.hub:
+    description: Access to the events hub GUI
+    default: false
+  eventplugin.fullmoon:
+    description: Access to /fullmoon command
+    default: false
+  eventplugin.fullmoon.gui:
+    description: Access to Full Moon map selection GUI
+    default: false
+  eventplugin.fullmoon.quests:
+    description: Access to Full Moon quest GUI
+    default: false
+  eventplugin.fullmoon.admin:
+    description: Admin access to Full Moon commands
+    default: op
