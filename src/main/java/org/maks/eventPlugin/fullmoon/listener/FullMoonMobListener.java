@@ -117,23 +117,43 @@ public class FullMoonMobListener implements Listener {
         Entity killerEntity = event.getKiller();
         Player killer = getPlayer(killerEntity);
 
-        if (killer == null) return;
+        if (killer == null) {
+            // Jeśli zabójca nie jest graczem, sprawdź uczestników
+            Set<UUID> participants = bossParticipants.getOrDefault(event.getEntity().getUniqueId(), new HashSet<>());
+            if (participants.isEmpty()) {
+                // Nikt nie uderzył moba, wyczyść i wyjdź
+                bossParticipants.remove(event.getEntity().getUniqueId());
+                return;
+            }
+            // Użyj pierwszego uczestnika jako "zabójcy" do celów logiki, jeśli killer jest nullem
+            killer = Bukkit.getPlayer(participants.iterator().next());
+            if (killer == null) {
+                bossParticipants.remove(event.getEntity().getUniqueId());
+                return; // Gracz jest offline
+            }
+        } else {
+            // Jeśli killer jest graczem, upewnij się, że jest na liście uczestników
+            bossParticipants.computeIfAbsent(event.getEntity().getUniqueId(), k -> new HashSet<>()).add(killer.getUniqueId());
+        }
 
         // Get all participants who damaged this mob
         Set<UUID> participants = bossParticipants.getOrDefault(event.getEntity().getUniqueId(), new HashSet<>());
-        participants.add(killer.getUniqueId()); // Ensure killer is included
 
         // +++ POCZĄTEK MODYFIKACJI: Przebudowana logika progresu +++
 
         // Get base progress and chance (0 if 95% chance failed for normal mobs)
         int baseProgress = getBaseProgressForMob(mobType);
 
-        // If baseProgress is 0 (due to 5% chance fail), do nothing
-        if (baseProgress == 0) {
-            // Clean up participants tracking for this mob
-            bossParticipants.remove(event.getEntity().getUniqueId());
-            return;
-        }
+        // ==== POPRAWKA BŁĘDU: Zdejmujemy blokadę "return;" ====
+        // Usunięto:
+        // if (baseProgress == 0) {
+        //     bossParticipants.remove(event.getEntity().getUniqueId());
+        //     return;
+        // }
+        // Funkcja handleMobKill musi być wywołana ZAWSZE,
+        // aby postęp questa (+1) został zaliczony, nawet jeśli postęp eventu (baseProgress) wynosi 0.
+        // ==== KONIEC POPRAWKI BŁĘDU ====
+
 
         // Award progress and quest updates to all participants
         for (UUID participantId : participants) {
@@ -148,6 +168,7 @@ public class FullMoonMobListener implements Listener {
 
             // Handle mob kill (quest + event progress)
             // Pass base progress, hard mode status, and buff multiplier to the manager
+            // To wywołanie zaliczy +1 do questa (zawsze) i +baseProgress do eventu (jeśli > 0)
             fullMoonManager.handleMobKill(participant, mobType, isHard, baseProgress, buffMultiplier);
         }
         // +++ KONIEC MODYFIKACJI +++

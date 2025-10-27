@@ -72,6 +72,8 @@ public class BloodVialSummonListener implements Listener {
         if (clickedLoc.getBlockY() != blockY) return;
         if (clickedLoc.getBlockZ() != blockZ) return;
 
+        // --- POCZĄTEK POPRAWKI (Podwójna wiadomość) ---
+
         // Check player click cooldown (prevent double-click spam)
         long now = System.currentTimeMillis();
         Long lastClick = playerClickCooldown.get(playerId);
@@ -80,6 +82,12 @@ public class BloodVialSummonListener implements Listener {
             event.setCancelled(true);
             return;
         }
+
+        // Update player click cooldown IMMEDIATELY
+        // To zapobiega podwójnemu wysłaniu wiadomości o cooldownie bossa
+        playerClickCooldown.put(playerId, now);
+
+        // --- KONIEC POPRAWKI ---
 
         // Check boss spawn cooldown (60s between spawns per difficulty)
         Long lastSpawn = difficultySpawnCooldown.get(difficultyKey);
@@ -90,8 +98,8 @@ public class BloodVialSummonListener implements Listener {
             return;
         }
 
-        // Update player click cooldown
-        playerClickCooldown.put(playerId, now);
+        // Usunięto: playerClickCooldown.put(playerId, now); (przeniesione wyżej)
+
 
         // Check if player has Blood Vial in pouch
         if (!PouchHelper.isAvailable()) {
