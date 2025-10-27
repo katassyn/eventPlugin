@@ -30,38 +30,59 @@ public class FullMoonMobListener implements Listener {
     // Boss UUID -> Set of Player UUIDs
     private final Map<UUID, Set<UUID>> bossParticipants = new HashMap<>();
 
-    // Define progress amounts for each mob type
-    private static final Map<String, Integer> PROGRESS_MAP = new HashMap<>();
+    // +++ POCZĄTEK MODYFIKACJI +++
+    // Usunięto statyczną PROGRESS_MAP
+    // Dodano randomizer dla zakresów progresu i szans
+    private final java.util.Random random = new java.util.Random();
 
-    static {
-        // Map 1 mobs (normal)
-        PROGRESS_MAP.put("werewolf_normal", 2);  // Random 1-3, use average
-        PROGRESS_MAP.put("wolf_normal", 2);      // Random 1-2, use average
-        PROGRESS_MAP.put("werewolf_commander_normal", 30); // 25 or 35, use average
-        PROGRESS_MAP.put("amarok_normal", 100);
+    /**
+     * Get the BASE (Normal) progress amount for a mob type.
+     * This method handles the 5% chance for normal mobs and 100% for bosses,
+     * and returns the value ranges from Full_Moon_PLAN.md.
+     */
+    private int getBaseProgressForMob(String mobType) {
+        // Get base mob type (strip suffixes)
+        String baseMobType = mobType;
+        if (mobType.endsWith("_normal")) {
+            baseMobType = mobType.substring(0, mobType.length() - 7);
+        } else if (mobType.endsWith("_hard")) {
+            baseMobType = mobType.substring(0, mobType.length() - 5);
+        }
 
-        // Map 1 mobs (hard)
-        PROGRESS_MAP.put("werewolf_hard", 4);    // Random 2-6, use average
-        PROGRESS_MAP.put("wolf_hard", 3);        // Random 2-4, use average
-        PROGRESS_MAP.put("werewolf_commander_hard", 62); // 50 or 75, use average
-        PROGRESS_MAP.put("amarok_hard", 300);
+        // 100% chance mobs (Bosses / Mini-bosses)
+        switch (baseMobType.toLowerCase()) {
+            case "werewolf_commander":
+                return random.nextBoolean() ? 25 : 35; // Normal: 25 or 35
+            case "amarok":
+                return 100; // Normal: 100
+            case "werewolf_blood_mage_disciple":
+                return 100; // Normal: 100
+            case "sanguis":
+                return 500; // Normal: 500
+            case "crystallized_curse":
+                return 300; // Special boss
+        }
 
-        // Map 2 mobs (normal)
-        PROGRESS_MAP.put("bloody_werewolf_normal", 6);
-        PROGRESS_MAP.put("werewolf_blood_mage_disciple_normal", 100);
-        PROGRESS_MAP.put("sanguis_normal", 500);
+        // 5% chance mobs (Normal mobs)
+        if (random.nextDouble() > 0.05) {
+            return 0; // 95% chance to get no progress
+        }
 
-        // Map 2 mobs (hard)
-        PROGRESS_MAP.put("bloody_werewolf_hard", 12);
-        PROGRESS_MAP.put("werewolf_blood_mage_disciple_hard", 200);
-        PROGRESS_MAP.put("sanguis_hard", 1000);
+        // Passed 5% chance, calculate progress
+        switch (baseMobType.toLowerCase()) {
+            case "werewolf":
+                return random.nextInt(3) + 1; // Normal: 1-3
+            case "wolf":
+                return random.nextInt(2) + 1; // Normal: 1-2
+            case "bloody_werewolf":
+                return 6; // Normal: 6
+            case "blood_sludgeling":
+                return 4; // Normal: 4
+        }
 
-        // blood_sludgeling - existing mob (same for both modes, progress: 4 normal, 8 hard via 2x multiplier)
-        PROGRESS_MAP.put("blood_sludgeling", 4);
-
-        // Special boss
-        PROGRESS_MAP.put("crystallized_curse", 300); // Single difficulty, very hard
+        return 0; // Default no progress if mob not in plan
     }
+    // +++ KONIEC MODYFIKACJI +++
 
     public FullMoonMobListener(FullMoonManager fullMoonManager, BuffManager buffManager, Map2TransitionGUI transitionGUI) {
         this.fullMoonManager = fullMoonManager;
@@ -102,13 +123,16 @@ public class FullMoonMobListener implements Listener {
         Set<UUID> participants = bossParticipants.getOrDefault(event.getEntity().getUniqueId(), new HashSet<>());
         participants.add(killer.getUniqueId()); // Ensure killer is included
 
-        // Determine if this is hard mode based on mob name
-        boolean isHard = mobType.endsWith("_hard");
+        // +++ POCZĄTEK MODYFIKACJI: Przebudowana logika progresu +++
 
-        // Get progress amount for this mob type
-        Integer baseProgress = PROGRESS_MAP.get(mobType);
-        if (baseProgress == null) {
-            baseProgress = 1; // Default if not defined
+        // Get base progress and chance (0 if 95% chance failed for normal mobs)
+        int baseProgress = getBaseProgressForMob(mobType);
+
+        // If baseProgress is 0 (due to 5% chance fail), do nothing
+        if (baseProgress == 0) {
+            // Clean up participants tracking for this mob
+            bossParticipants.remove(event.getEntity().getUniqueId());
+            return;
         }
 
         // Award progress and quest updates to all participants
@@ -116,20 +140,18 @@ public class FullMoonMobListener implements Listener {
             Player participant = Bukkit.getPlayer(participantId);
             if (participant == null || !participant.isOnline()) continue;
 
-            // Apply Attrie buff if player has it
+            // Determine if this participant is in hard mode
+            boolean isHard = fullMoonManager.isHardMode(participantId);
+
+            // Get Attrie buff status
             double buffMultiplier = buffManager.hasBuff(participant) ? 1.5 : 1.0;
-            double totalMultiplier = buffMultiplier;
 
-            // Handle mob kill (quest + event progress with hard mode 2x bonus)
-            fullMoonManager.handleMobKill(participant, mobType, isHard, baseProgress);
-
-            // Additional Attrie buff for event progress only (not quest kills)
-            if (buffMultiplier > 1.0) {
-                int additionalProgress = (int) Math.round(baseProgress * (buffMultiplier - 1.0));
-                if (isHard) additionalProgress *= 2; // Apply hard mode multiplier
-                fullMoonManager.getEventManager().addProgress(participant, additionalProgress, 1.0);
-            }
+            // Handle mob kill (quest + event progress)
+            // Pass base progress, hard mode status, and buff multiplier to the manager
+            fullMoonManager.handleMobKill(participant, mobType, isHard, baseProgress, buffMultiplier);
         }
+        // +++ KONIEC MODYFIKACJI +++
+
 
         // Special handling for Amarok (Map 1 boss) - show transition GUI to all participants
         if (mobType.equalsIgnoreCase("amarok_normal") || mobType.equalsIgnoreCase("amarok_hard")) {

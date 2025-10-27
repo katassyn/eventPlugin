@@ -45,6 +45,13 @@ public class MythicMobProgressListener implements Listener {
 
         double multiplier = buffManager.hasBuff(player) ? 1.5 : 1.0;
         for (EventManager manager : events.values()) {
+            // +++ POCZĄTEK MODYFIKACJI +++
+            // Ignore the full_moon event; it is handled by FullMoonMobListener
+            if (manager.getEventId().equalsIgnoreCase("full_moon")) {
+                continue;
+            }
+            // +++ KONIEC MODYFIKACJI +++
+
             manager.checkExpiry();
             if (manager.isActive()) {
                 int amount = manager.getRandomProgress();
@@ -53,4 +60,3 @@ public class MythicMobProgressListener implements Listener {
         }
     }
 }
-

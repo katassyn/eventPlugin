@@ -154,8 +154,11 @@ public class FullMoonManager {
      * @param mobType The MythicMobs internal name
      * @param isHard Whether this was a hard mode kill
      * @param progressAmount Base progress amount for event
+     * @param buffMultiplier The buff multiplier (e.g., 1.0 for none, 1.5 for Attrie)
      */
-    public void handleMobKill(Player player, String mobType, boolean isHard, int progressAmount) {
+    // +++ POCZĄTEK MODYFIKACJI: Dodano parametr buffMultiplier +++
+    public void handleMobKill(Player player, String mobType, boolean isHard, int progressAmount, double buffMultiplier) {
+        // +++ KONIEC MODYFIKACJI +++
         UUID playerId = player.getUniqueId();
 
         // Determine actual mob type (strip _normal or _hard suffix for quest matching)
@@ -173,9 +176,12 @@ public class FullMoonManager {
             player.sendTitle("§aQuest Complete!", "", 10, 40, 10);
         }
 
-        // Update event progress (with 2x multiplier for hard mode)
-        double multiplier = isHard ? 2.0 : 1.0;
-        eventManager.addProgress(player, progressAmount, multiplier);
+        // Update event progress (with 2x multiplier for hard mode AND buff multiplier)
+        // +++ POCZĄTEK MODYFIKACJI: Zastosuj połączone mnożniki +++
+        double hardMultiplier = isHard ? 2.0 : 1.0;
+        double totalMultiplier = hardMultiplier * buffMultiplier; // Połącz mnożniki
+        eventManager.addProgress(player, progressAmount, totalMultiplier);
+        // +++ KONIEC MODYFIKACJI +++
 
         // Track kill count for statistics
         Map<String, Integer> kills = playerMobKills.computeIfAbsent(playerId, k -> new HashMap<>());

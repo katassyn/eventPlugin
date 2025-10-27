@@ -38,6 +38,12 @@ public class EventManager {
         loadProgress();
     }
 
+    // +++ POCZĄTEK MODYFIKACJI +++
+    public String getEventId() {
+        return eventId;
+    }
+    // +++ KONIEC MODYFIKACJI +++
+
     public void setConfigManager(org.maks.eventPlugin.config.ConfigManager configManager) {
         this.configManager = configManager;
     }
