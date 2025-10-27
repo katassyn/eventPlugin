@@ -67,7 +67,7 @@ public class CursedAmphoryManager {
             }
 
             trySpawnAmphory();
-        }, spawnInterval, spawnInterval);
+        }, 0L, spawnInterval); // Uruchom natychmiast (0L), A potem co spawnInterval
 
         if (debugMode) {
             plugin.getLogger().info("[Full Moon] Cursed Amphory spawn system started in DEBUG MODE (1 minute interval)");
@@ -108,9 +108,22 @@ public class CursedAmphoryManager {
         // Update next spawn time (for hologram display)
         nextSpawnTime = System.currentTimeMillis() + (spawnInterval * 50); // Convert ticks to milliseconds
 
-        // Always spawn amphoras (100% chance)
-        spawnAmphoryForDifficulty("normal");
-        spawnAmphoryForDifficulty("hard");
+        // --- POCZĄTEK POPRAWKI: Dwa oddzielne losowania ---
+
+        // Losowanie dla "normal"
+        if (ThreadLocalRandom.current().nextDouble() <= SPAWN_CHANCE) {
+            spawnAmphoryForDifficulty("normal");
+        } else {
+            plugin.getLogger().info("[Full Moon] Cursed Amphora (Normal) did not spawn (failed roll)");
+        }
+
+        // Losowanie dla "hard"
+        if (ThreadLocalRandom.current().nextDouble() <= SPAWN_CHANCE) {
+            spawnAmphoryForDifficulty("hard");
+        } else {
+            plugin.getLogger().info("[Full Moon] Cursed Amphora (Hard) did not spawn (failed roll)");
+        }
+        // --- KONIEC POPRAWKI ---
     }
 
     /**
@@ -120,7 +133,7 @@ public class CursedAmphoryManager {
         // Get spawn location from config
         var amphoraSection = config.getSection("full_moon.coordinates.map1." + difficulty + ".cursed_amphora");
         if (amphoraSection == null) {
-            plugin.getLogger().warning("[Full Moon] Cursed Amphora coordinates not configured for " + difficulty + "!");
+            plugin.getLogger().warning("[Full Moon] Cursed Amphory coordinates not configured for " + difficulty + "!");
             return;
         }
 
@@ -265,12 +278,13 @@ public class CursedAmphoryManager {
 
         // Remove the amphora and hologram
         location.getBlock().setType(Material.AIR);
-        removeHologram(location);
 
         if (isNormal) {
+            removeHologram("normal");
             normalAmphoryActive = false;
             currentNormalAmphoryLocation = null;
         } else {
+            removeHologram("hard");
             hardAmphoryActive = false;
             currentHardAmphoryLocation = null;
         }
@@ -318,7 +332,7 @@ public class CursedAmphoryManager {
             if (block.getType() == Material.BLACK_SHULKER_BOX) {
                 block.setType(Material.AIR);
             }
-            removeHologram(currentNormalAmphoryLocation);
+            removeHologram("normal");
             normalAmphoryActive = false;
             currentNormalAmphoryLocation = null;
         }
@@ -329,26 +343,22 @@ public class CursedAmphoryManager {
             if (block.getType() == Material.BLACK_SHULKER_BOX) {
                 block.setType(Material.AIR);
             }
-            removeHologram(currentHardAmphoryLocation);
+            removeHologram("hard");
             hardAmphoryActive = false;
             currentHardAmphoryLocation = null;
         }
     }
 
     /**
-     * Remove hologram at location.
+     * Remove hologram by difficulty key.
      */
-    private void removeHologram(Location location) {
-        // Find and remove holograms for both difficulties
-        for (String difficulty : new String[]{"normal", "hard"}) {
-            List<ArmorStand> stands = holograms.get(difficulty);
-            if (stands != null) {
-                for (ArmorStand stand : stands) {
-                    if (stand != null && stand.isValid()) {
-                        stand.remove();
-                    }
+    private void removeHologram(String difficulty) {
+        List<ArmorStand> stands = holograms.remove(difficulty);
+        if (stands != null) {
+            for (ArmorStand stand : stands) {
+                if (stand != null && stand.isValid()) {
+                    stand.remove();
                 }
-                holograms.remove(difficulty);
             }
         }
     }
@@ -372,6 +382,19 @@ public class CursedAmphoryManager {
             return currentHardAmphoryLocation;
         }
         return null;
+    }
+
+    /**
+     * Check if a location matches EITHER amphora
+     */
+    public boolean isAmphoraLocation(Location location) {
+        if (normalAmphoryActive && currentNormalAmphoryLocation != null && location.equals(currentNormalAmphoryLocation)) {
+            return true;
+        }
+        if (hardAmphoryActive && currentHardAmphoryLocation != null && location.equals(currentHardAmphoryLocation)) {
+            return true;
+        }
+        return false;
     }
 
     /**

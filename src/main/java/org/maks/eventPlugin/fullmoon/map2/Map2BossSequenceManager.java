@@ -44,12 +44,14 @@ public class Map2BossSequenceManager {
         // Spawn normal mobs on grass blocks
         spawnNormalMobs(instance, player, isHard);
 
-        // Scan for obsidian blocks (mini-boss spawns)
-        List<Location> miniBossLocations = scanForBlocks(instance, Material.OBSIDIAN);
+        // --- POCZĄTEK POPRAWKI (Skanowanie Bloków) ---
+        // Scan for mini-boss spawns (np. OBSIDIAN) z configu
+        List<Location> miniBossLocations = scanForBlocks(instance, "mini_boss");
+        // --- KONIEC POPRAWKI ---
 
         if (miniBossLocations.size() < 3) {
             player.sendMessage("§c§l[Full Moon] §cWarning: Less than 3 mini-boss spawn points found!");
-            Bukkit.getLogger().warning("[Full Moon] Instance " + instance.getInstanceId() + " has only " + miniBossLocations.size() + " obsidian blocks!");
+            Bukkit.getLogger().warning("[Full Moon] Instance " + instance.getInstanceId() + " has only " + miniBossLocations.size() + " mini-boss blocks!");
         }
 
         // Spawn up to 3 mini-bosses
@@ -78,11 +80,13 @@ public class Map2BossSequenceManager {
      * @param isHard Whether this is hard mode
      */
     private void spawnNormalMobs(Map2Instance instance, Player player, boolean isHard) {
-        // Scan for grass blocks (normal mob spawns)
-        List<Location> grassLocations = scanForBlocks(instance, Material.GRASS_BLOCK);
+        // --- POCZĄTEK POPRAWKI (Skanowanie Bloków) ---
+        // Scan for mob spawns (np. GRASS_BLOCK) z configu
+        List<Location> grassLocations = scanForBlocks(instance, "mob_spawn");
+        // --- KONIEC POPRAWKI ---
 
         if (grassLocations.isEmpty()) {
-            Bukkit.getLogger().warning("[Full Moon] No grass blocks found in instance " + instance.getInstanceId() + " for normal mob spawns!");
+            Bukkit.getLogger().warning("[Full Moon] No mob spawn blocks found in instance " + instance.getInstanceId() + " for normal mob spawns!");
             return;
         }
 
@@ -139,12 +143,14 @@ public class Map2BossSequenceManager {
      * Spawn the final boss (Sanguis) on the diamond block.
      */
     private void spawnFinalBoss(Map2Instance instance, Player player, boolean isHard) {
-        // Find diamond block
-        List<Location> diamondLocations = scanForBlocks(instance, Material.DIAMOND_BLOCK);
+        // --- POCZĄTEK POPRAWKI (Skanowanie Bloków) ---
+        // Find final boss block (np. DIAMOND_BLOCK) z configu
+        List<Location> diamondLocations = scanForBlocks(instance, "final_boss");
+        // --- KONIEC POPRAWKI ---
 
         if (diamondLocations.isEmpty()) {
-            player.sendMessage("§c§l[Full Moon] §cError: No diamond block found for final boss spawn!");
-            Bukkit.getLogger().warning("[Full Moon] No diamond block found in instance " + instance.getInstanceId());
+            player.sendMessage("§c§l[Full Moon] §cError: No final boss spawn block found!");
+            Bukkit.getLogger().warning("[Full Moon] No final boss spawn block found in instance " + instance.getInstanceId());
             return;
         }
 
@@ -225,23 +231,70 @@ public class Map2BossSequenceManager {
         });
     }
 
+    // --- POCZĄTEK POPRAWKI (Skanowanie Bloków) ---
+
     /**
-     * Scan an instance region for specific block types.
+     * Gets the player spawn location by scanning for the configured block.
+     * @param instance The instance to scan.
+     * @return The Location of the spawn block, or null if not found.
      */
-    private List<Location> scanForBlocks(Map2Instance instance, Material material) {
+    public Location getPlayerSpawn(Map2Instance instance) {
+        List<Location> spawnLocations = scanForBlocks(instance, "player_spawn");
+        if (spawnLocations.isEmpty()) {
+            Bukkit.getLogger().warning("[Full Moon] No player_spawn block found in instance " + instance.getInstanceId());
+            return null;
+        }
+        if (spawnLocations.size() > 1) {
+            Bukkit.getLogger().warning("[Full Moon] Multiple player_spawn blocks found in instance " + instance.getInstanceId() + ". Using the first one.");
+        }
+        return spawnLocations.get(0);
+    }
+
+    /**
+     * Scan an instance region for specific block types based on config key.
+     * @param instance The instance to scan.
+     * @param configKey The key from config.yml (e.g., "player_spawn", "mini_boss")
+     * @return List of locations where the block was found.
+     */
+    private List<Location> scanForBlocks(Map2Instance instance, String configKey) {
         List<Location> locations = new ArrayList<>();
+
+        // Get material name from config
+        String materialName = config.getSection("full_moon.schematic.scan_blocks").getString(configKey);
+        if (materialName == null) {
+            Bukkit.getLogger().severe("[Full Moon] Config missing for full_moon.schematic.scan_blocks." + configKey);
+            return locations;
+        }
+
+        Material material = Material.getMaterial(materialName.toUpperCase());
+        if (material == null) {
+            Bukkit.getLogger().severe("[Full Moon] Invalid material name in config: " + materialName + " for key " + configKey);
+            return locations;
+        }
+
         Region region = instance.getRegion();
         World world = instance.getWorld();
 
-        for (BlockVector3 vec : region) {
-            Block block = world.getBlockAt(vec.getBlockX(), vec.getBlockY(), vec.getBlockZ());
-            if (block.getType() == material) {
-                locations.add(block.getLocation());
+        if (region == null) {
+            Bukkit.getLogger().severe("[Full Moon] Instance region is null during scan! Instance ID: " + instance.getInstanceId());
+            return locations;
+        }
+
+        try {
+            for (BlockVector3 vec : region) {
+                Block block = world.getBlockAt(vec.getBlockX(), vec.getBlockY(), vec.getBlockZ());
+                if (block.getType() == material) {
+                    locations.add(block.getLocation());
+                }
             }
+        } catch (Exception e) {
+            Bukkit.getLogger().severe("[Full Moon] Error during block scan for " + configKey + ": " + e.getMessage());
+            e.printStackTrace();
         }
 
         return locations;
     }
+    // --- KONIEC POPRAWKI ---
 
     /**
      * Spawn a MythicMob at a location using console command.

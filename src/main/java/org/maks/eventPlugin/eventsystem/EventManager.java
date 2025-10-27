@@ -38,7 +38,7 @@ public class EventManager {
         loadProgress();
     }
 
-    // +++ POCZĄTEK MODYFIKACJI +++
+    // +++ POCZÄ„TEK MODYFIKACJI +++
     public String getEventId() {
         return eventId;
     }
@@ -96,14 +96,16 @@ public class EventManager {
         progressMap.put(player.getUniqueId(), newProgress);
         saveProgress(player.getUniqueId(), newProgress);
 
+        // --- POCZĄTEK POPRAWKI (Tytuł powiadomienia) ---
         // Notify player when they cross a reward threshold
         for (Reward reward : rewards) {
             if (current < reward.requiredProgress() && newProgress >= reward.requiredProgress()) {
-                String title = "Reward unlocked!";
-                String sub = "For " + reward.requiredProgress() + " progress";
+                String title = "§b" + this.name; // Nazwa eventu jako tytuł
+                String sub = "§eReward for " + reward.requiredProgress() + " progress unlocked";
                 player.sendTitle(title, sub, 10, 60, 10);
             }
         }
+        // --- KONIEC POPRAWKI ---
     }
 
     public void addReward(int required, ItemStack item) {

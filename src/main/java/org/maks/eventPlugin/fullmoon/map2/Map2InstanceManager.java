@@ -51,10 +51,10 @@ public class Map2InstanceManager {
     private int maxZ = -2100;
     private String worldName = "world";
 
-    // Schematic size from config
-    private int schematicSizeX = 172;
-    private int schematicSizeY = 52;
-    private int schematicSizeZ = 321;
+    // Schematic size from config (TYLKO JAKO FALLBACK, POWINNIŚMY UŻYWAĆ FAKTYCZNEGO ROZMIARU)
+    private int schematicSizeX_config = 172;
+    private int schematicSizeY_config = 52;
+    private int schematicSizeZ_config = 321;
 
     public Map2InstanceManager(JavaPlugin plugin, ConfigManager config) {
         this.plugin = plugin;
@@ -72,9 +72,9 @@ public class Map2InstanceManager {
             // Load schematic size
             var sizeSection = schematicSection.getConfigurationSection("size");
             if (sizeSection != null) {
-                schematicSizeX = sizeSection.getInt("x", 172);
-                schematicSizeY = sizeSection.getInt("y", 52);
-                schematicSizeZ = sizeSection.getInt("z", 321);
+                schematicSizeX_config = sizeSection.getInt("x", 172);
+                schematicSizeY_config = sizeSection.getInt("y", 52);
+                schematicSizeZ_config = sizeSection.getInt("z", 321);
             }
 
             // Load spawn area
@@ -90,7 +90,7 @@ public class Map2InstanceManager {
         }
 
         plugin.getLogger().info("[Full Moon] Map2 area: X(" + minX + " to " + maxX + ") Z(" + minZ + " to " + maxZ + ")");
-        plugin.getLogger().info("[Full Moon] Schematic size: " + schematicSizeX + "x" + schematicSizeY + "x" + schematicSizeZ);
+        plugin.getLogger().info("[Full Moon] Config schematic size (fallback): " + schematicSizeX_config + "x" + schematicSizeY_config + "x" + schematicSizeZ_config);
         plugin.getLogger().info("[Full Moon] Max instances: " + maxInstances + ", Spacing: " + spacing);
     }
 
@@ -138,7 +138,8 @@ public class Map2InstanceManager {
 
             try (ClipboardReader reader = format.getReader(new FileInputStream(schematicFile))) {
                 clipboard = reader.read();
-                size = clipboard.getRegion().getMaximumPoint().subtract(clipboard.getRegion().getMinimumPoint());
+                // Pobierz FAKTYCZNY rozmiar ze schematu (od min do max)
+                size = clipboard.getRegion().getMaximumPoint().subtract(clipboard.getRegion().getMinimumPoint()).add(1, 1, 1);
             }
         } catch (Exception e) {
             player.sendMessage("§c§l[Full Moon] §cFailed to load arena schematic!");
@@ -155,21 +156,26 @@ public class Map2InstanceManager {
             return null;
         }
 
-        // Find free coordinates
+        // --- POCZĄTEK POPRAWKI (Problem #2) ---
+        // Użyj FAKTYCZNEGO rozmiaru schematu (size), a nie rozmiaru z configu
         Location origin = findFreeLocation(world, size);
         if (origin == null) {
             player.sendMessage("§c§l[Full Moon] §cNo space available for arena instance!");
             return null;
         }
 
+        // Użyj FAKTYCZNEGO rozmiaru (size) do stworzenia instancji
+        Map2Instance instance = new Map2Instance(player.getUniqueId(), origin, size);
+        // --- KONIEC POPRAWKI ---
+
         // Paste schematic
         if (!pasteSchematic(clipboard, origin)) {
             player.sendMessage("§c§l[Full Moon] §cFailed to create arena instance!");
+            // Zwolnij miejsce, jeśli wklejanie się nie powiodło
+            occupiedRanges.removeIf(range -> range.minX == origin.getBlockX() && range.minZ == origin.getBlockZ());
             return null;
         }
 
-        // Create instance object
-        Map2Instance instance = new Map2Instance(player.getUniqueId(), origin, size);
 
         // Mark space as occupied
         CoordinateRange range = new CoordinateRange(
@@ -197,31 +203,43 @@ public class Map2InstanceManager {
      * Find a free location for a new instance within the configured spawn area.
      */
     private Location findFreeLocation(World world, BlockVector3 size) {
-        // Calculate available space in X and Z
+
+        // --- POCZĄTEK POPRAWKI (Problem #2) ---
+        // Używamy FAKTYCZNEGO rozmiaru schematu (z parametru size) zamiast pól klasy
+        int sizeX = size.getBlockX();
+        int sizeZ = size.getBlockZ();
+
+        // Handle negative Z coordinates
         int availableX = maxX - minX;
-        int availableZ = Math.abs(maxZ - minZ);  // Handle negative Z coordinates
+        int availableZ = Math.abs(maxZ - minZ);
 
         // Calculate number of slots in each direction
-        int slotsX = availableX / (schematicSizeX + spacing);
-        int slotsZ = availableZ / (schematicSizeZ + spacing);
+        int slotsX = availableX / (sizeX + spacing);
+        int slotsZ = availableZ / (sizeZ + spacing);
+        // --- KONIEC POPRAWKI ---
 
         // Try each possible slot
         for (int slotX = 0; slotX < slotsX; slotX++) {
             for (int slotZ = 0; slotZ < slotsZ; slotZ++) {
-                int x = minX + (slotX * (schematicSizeX + spacing));
-                int z = minZ + (slotZ * (schematicSizeZ + spacing));
+
+                // --- POCZĄTEK POPRAWKI (Problem #2) ---
+                int x = minX + (slotX * (sizeX + spacing));
+                int z;
 
                 // Ensure Z is calculated correctly (area goes from -863 to -2100)
                 if (maxZ < minZ) {
-                    z = minZ - (slotZ * (schematicSizeZ + spacing));
+                    z = minZ - (slotZ * (sizeZ + spacing));
+                } else {
+                    z = minZ + (slotZ * (sizeZ + spacing));
                 }
 
                 CoordinateRange testRange = new CoordinateRange(
                         x,
                         z,
-                        x + schematicSizeX,
-                        z + schematicSizeZ
+                        x + sizeX,
+                        z + sizeZ
                 );
+                // --- KONIEC POPRAWKI ---
 
                 if (!isOverlapping(testRange)) {
                     return new Location(world, x, minY, z);
@@ -294,7 +312,7 @@ public class Map2InstanceManager {
             // Free up space
             occupiedRanges.removeIf(range ->
                     range.minX == instance.getOrigin().getBlockX() &&
-                    range.minZ == instance.getOrigin().getBlockZ()
+                            range.minZ == instance.getOrigin().getBlockZ()
             );
 
             plugin.getLogger().info("[Full Moon] Removed Map2 instance for player " + playerId);
@@ -325,15 +343,15 @@ public class Map2InstanceManager {
         final int minX, minZ, maxX, maxZ;
 
         CoordinateRange(int minX, int minZ, int maxX, int maxZ) {
-            this.minX = minX;
-            this.minZ = minZ;
-            this.maxX = maxX;
-            this.maxZ = maxZ;
+            this.minX = Math.min(minX, maxX);
+            this.minZ = Math.min(minZ, maxZ);
+            this.maxX = Math.max(minX, maxX);
+            this.maxZ = Math.max(minZ, maxZ);
         }
 
         boolean intersects(CoordinateRange other) {
             return !(maxX < other.minX || minX > other.maxX ||
-                     maxZ < other.minZ || minZ > other.maxZ);
+                    maxZ < other.minZ || minZ > other.maxZ);
         }
     }
 }

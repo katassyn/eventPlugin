@@ -144,7 +144,7 @@ public class FullMoonMobListener implements Listener {
         // Get base progress and chance (0 if 95% chance failed for normal mobs)
         int baseProgress = getBaseProgressForMob(mobType);
 
-        // ==== POPRAWKA BŁĘDU: Zdejmujemy blokadę "return;" ====
+        // ==== POPRAWKA BŁĘDU (Zliczanie questów): Zdejmujemy blokadę "return;" ====
         // Usunięto:
         // if (baseProgress == 0) {
         //     bossParticipants.remove(event.getEntity().getUniqueId());
@@ -182,12 +182,16 @@ public class FullMoonMobListener implements Listener {
 
                 // Check if player has unlocked Map 2 (Quest 4 completed)
                 if (fullMoonManager.getQuestManager().hasUnlockedMap2(participantId)) {
+
+                    // --- POCZĄTEK POPRAWKI (Opóźnienie GUI) ---
                     // Delay GUI opening slightly to allow death animation to finish
                     Bukkit.getScheduler().runTaskLater(
                             Bukkit.getPluginManager().getPlugin("EventPlugin"),
                             () -> transitionGUI.open(participant),
-                            20L // 1 second delay
+                            100L // 5 sekund opóźnienia (5 * 20L)
                     );
+                    // --- KONIEC POPRAWKI ---
+
                 } else {
                     participant.sendMessage("§c§l[Full Moon] §eComplete more quests to unlock the Blood Moon Arena!");
                 }

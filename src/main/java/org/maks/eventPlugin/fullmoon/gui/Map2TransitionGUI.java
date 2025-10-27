@@ -142,8 +142,10 @@ public class Map2TransitionGUI implements Listener {
         if (slot == ACCEPT_SLOT) {
             // Check if player can afford entry (for hard mode)
             boolean isHard = fullMoonManager.isHardMode(player.getUniqueId());
+            int entryCost = 0;
+
             if (isHard) {
-                int entryCost = fullMoonManager.getConfig()
+                entryCost = fullMoonManager.getConfig()
                         .getSection("full_moon.map2_entry_cost")
                         .getInt("hard", 30);
 
@@ -164,7 +166,7 @@ public class Map2TransitionGUI implements Listener {
             }
 
             player.closeInventory();
-            enterBloodMoonArena(player);
+            enterBloodMoonArena(player, entryCost); // Przekaż entryCost do zwrotu w razie błędu
         } else if (slot == DECLINE_SLOT) {
             player.closeInventory();
             player.sendMessage("§e§l[Full Moon] §eYou chose to stay. Good luck hunting!");
@@ -179,8 +181,9 @@ public class Map2TransitionGUI implements Listener {
     /**
      * Create a Map 2 instance and teleport the player.
      */
-    private void enterBloodMoonArena(Player player) {
+    private void enterBloodMoonArena(Player player, int entryCost) {
         player.sendMessage("§c§l[Full Moon] §eCreating Blood Moon Arena instance...");
+        boolean isHard = fullMoonManager.isHardMode(player.getUniqueId());
 
         // Run instance creation asynchronously to avoid blocking
         Bukkit.getScheduler().runTaskAsynchronously(
@@ -189,7 +192,12 @@ public class Map2TransitionGUI implements Listener {
                     Map2Instance instance = fullMoonManager.getMap2InstanceManager().createInstance(player);
 
                     if (instance == null) {
-                        player.sendMessage("§c§l[Full Moon] §cFailed to create arena instance!");
+                        player.sendMessage("§c§l[Full Moon] §cFailed to create arena instance! (Perhaps no free slots)");
+                        // Zwróć IPS jeśli wystąpił błąd
+                        if (isHard && entryCost > 0) {
+                            PouchHelper.addItem(player, "ips", entryCost);
+                            player.sendMessage("§a§l[Full Moon] §aYour " + entryCost + " IPS have been refunded.");
+                        }
                         return;
                     }
 
@@ -197,22 +205,26 @@ public class Map2TransitionGUI implements Listener {
                     Bukkit.getScheduler().runTask(
                             Bukkit.getPluginManager().getPlugin("EventPlugin"),
                             () -> {
-                                // Get player spawn location (gold block)
-                                var playerSpawnSection = fullMoonManager.getConfig()
-                                        .getSection("full_moon.coordinates.map2.player_spawn");
+                                // --- POCZĄTEK POPRAWKI (Teleport gracza) ---
+                                // Get player spawn location (gold block) by scanning
+                                Location spawnLoc = fullMoonManager.getMap2BossSequenceManager().getPlayerSpawn(instance);
 
-                                if (playerSpawnSection != null) {
-                                    int relX = playerSpawnSection.getInt("x");
-                                    int relY = playerSpawnSection.getInt("y");
-                                    int relZ = playerSpawnSection.getInt("z");
-
-                                    Location spawnLoc = instance.getRelativeLocation(relX, relY, relZ);
-                                    spawnLoc.add(0.5, 0, 0.5); // Center player on block
-                                    player.teleport(spawnLoc);
+                                if (spawnLoc == null) {
+                                    player.sendMessage("§c§l[Full Moon] §cCRITICAL ERROR: No player spawn block found in schematic!");
+                                    // Wyczyść instancję i zwróć koszty
+                                    fullMoonManager.getMap2InstanceManager().removeInstance(player.getUniqueId());
+                                    if (isHard && entryCost > 0) {
+                                        PouchHelper.addItem(player, "ips", entryCost);
+                                        player.sendMessage("§a§l[Full Moon] §aYour " + entryCost + " IPS have been refunded.");
+                                    }
+                                    return;
                                 }
 
+                                spawnLoc.add(0.5, 0.5, 0.5); // Center player on block
+                                player.teleport(spawnLoc);
+                                // --- KONIEC POPRAWKI ---
+
                                 // Initialize boss sequence
-                                boolean isHard = fullMoonManager.isHardMode(player.getUniqueId());
                                 fullMoonManager.getMap2BossSequenceManager()
                                         .initializeBossSequence(instance, player, isHard);
 
