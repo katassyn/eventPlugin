@@ -85,11 +85,11 @@ full_moon:
 
     # Area where instances can be placed (547,-37,-863 to 1154,-44,-2100)
     spawn_area:
-      min_x: 547
+      min_x: 670
       min_y: -37  # Spawn height (superflat world)
       min_z: -863
       max_x: 1154
-      max_z: -2100
+      max_z: -4100
       world: "world"
 
     # Spacing between instances (margin)
