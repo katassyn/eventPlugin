@@ -114,18 +114,13 @@ public class Map2BossListener implements Listener {
 
         // Handle boss death based on type
         if (isMiniBoss) {
-            boolean isHard = fullMoonManager.isHardMode(player.getUniqueId());
-            sequenceManager.handleMiniBossDeath(instance, entity.getUniqueId(), player, isHard);
+            // Get difficulty from instance (not from player's current mode)
+            sequenceManager.handleMiniBossDeath(instance, entity.getUniqueId(), player);
         } else if (isFinalBoss) {
             sequenceManager.handleFinalBossDeath(instance, player);
 
-            // Schedule instance removal after 60 seconds (after teleport)
-            Player finalPlayer = player;
-            Bukkit.getScheduler().runTaskLater(
-                    Bukkit.getPluginManager().getPlugin("EventPlugin"),
-                    () -> fullMoonManager.getMap2InstanceManager().removeInstance(finalPlayer.getUniqueId()),
-                    60L * 20L + 20L // 61 seconds (1 second after teleport)
-            );
+            // Note: Instance removal is handled by Map2BossSequenceManager.startCleanupCountdown()
+            // which schedules cleanup after 60 seconds countdown with teleport
         }
     }
 }

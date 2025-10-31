@@ -142,6 +142,10 @@ public class BloodVialSummonListener implements Listener {
                 spawnZ + 0.5
         );
 
+        // Set player difficulty based on which blood block they clicked
+        fullMoonManager.setPlayerDifficulty(player.getUniqueId(), difficultyKey);
+        Bukkit.getLogger().info("[Full Moon] Set " + player.getName() + " difficulty to: " + difficultyKey);
+
         // Spawn Amarok
         String mobType = isHard ? "amarok_hard" : "amarok_normal";
         if (!spawnAmarok(spawnLoc, mobType)) {
@@ -153,23 +157,8 @@ public class BloodVialSummonListener implements Listener {
         // Update difficulty spawn cooldown
         difficultySpawnCooldown.put(difficultyKey, now);
 
-        // Success messages
+        // Success - cancel event (no spam messages)
         event.setCancelled(true);
-        player.sendMessage("§c§l[Full Moon] §eYou have summoned §6Amarok, First Werewolf§e!");
-
-        // Broadcast to nearby players
-        for (Player nearbyPlayer : spawnLoc.getWorld().getPlayers()) {
-            if (nearbyPlayer.getLocation().distance(spawnLoc) <= 50) {
-                if (!nearbyPlayer.equals(player)) {
-                    nearbyPlayer.sendMessage("§c§l[Full Moon] §6" + player.getName() + " §ehas summoned §6Amarok§e!");
-                }
-                nearbyPlayer.sendTitle(
-                        "§c§lAMAROK AWAKENS",
-                        "§eFirst Werewolf rises!",
-                        10, 40, 20
-                );
-            }
-        }
     }
 
     // --- NOWE METODY POMOCNICZE (Fiolka Krwi) ---

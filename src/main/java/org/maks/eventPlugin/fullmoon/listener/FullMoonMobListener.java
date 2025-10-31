@@ -1,7 +1,9 @@
 package org.maks.eventPlugin.fullmoon.listener;
 
+import io.lumine.mythic.bukkit.MythicBukkit;
 import io.lumine.mythic.bukkit.events.MythicMobDeathEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -173,6 +175,29 @@ public class FullMoonMobListener implements Listener {
         }
         // +++ KONIEC MODYFIKACJI +++
 
+        // Special handling for Crystallized Curse - kill all MythicMobs in 50 block radius
+        if (mobType.equalsIgnoreCase("crystallized_curse")) {
+            Location deathLocation = event.getEntity().getLocation();
+            int mobsKilled = 0;
+
+            // Get all entities within 50 blocks
+            for (Entity nearbyEntity : deathLocation.getWorld().getNearbyEntities(deathLocation, 50, 50, 50)) {
+                // Skip players
+                if (nearbyEntity instanceof Player) continue;
+
+                // Skip if not a LivingEntity
+                if (!(nearbyEntity instanceof LivingEntity)) continue;
+
+                // Check if entity is a MythicMob
+                if (MythicBukkit.inst().getAPIHelper().isMythicMob(nearbyEntity)) {
+                    // Kill the MythicMob
+                    ((LivingEntity) nearbyEntity).setHealth(0);
+                    mobsKilled++;
+                }
+            }
+
+            // Silent purge - no notifications
+        }
 
         // Special handling for Amarok (Map 1 boss) - show transition GUI to all participants
         if (mobType.equalsIgnoreCase("amarok_normal") || mobType.equalsIgnoreCase("amarok_hard")) {
@@ -192,9 +217,8 @@ public class FullMoonMobListener implements Listener {
                     );
                     // --- KONIEC POPRAWKI ---
 
-                } else {
-                    participant.sendMessage("§c§l[Full Moon] §eComplete more quests to unlock the Blood Moon Arena!");
                 }
+                // Silent - no message if quest not completed
             }
         }
 

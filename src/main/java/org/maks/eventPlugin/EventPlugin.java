@@ -4,6 +4,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.maks.eventPlugin.command.EventCommand;
+import org.maks.eventPlugin.command.EventHubCommand;
+import org.maks.eventPlugin.command.EventGUICommand;
+import org.maks.eventPlugin.command.FullMoonQuestsCommand;
 import org.maks.eventPlugin.config.ConfigManager;
 import org.maks.eventPlugin.db.DatabaseManager;
 import org.maks.eventPlugin.eventsystem.BuffManager;
@@ -125,18 +128,38 @@ public final class EventPlugin extends JavaPlugin {
         PluginCommand cmd = getCommand("event");
         if (cmd != null) {
             EventCommand eventCommand = new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI, configManager);
-            eventCommand.setEventsMainGUI(eventsMainGUI);
             eventCommand.setFullMoonManager(fullMoonManager); // Pass FullMoonManager for quest reset
             cmd.setExecutor(eventCommand);
         } else {
             Bukkit.getLogger().warning("Event command not found in plugin.yml");
         }
 
+        // Register /event_hub command
+        PluginCommand eventHubCmd = getCommand("event_hub");
+        if (eventHubCmd != null && eventsMainGUI != null) {
+            eventHubCmd.setExecutor(new EventHubCommand(eventsMainGUI));
+            Bukkit.getLogger().info("[EventPlugin] Event hub command registered");
+        }
+
+        // Register /event_gui command
+        PluginCommand eventGUICmd = getCommand("event_gui");
+        if (eventGUICmd != null) {
+            eventGUICmd.setExecutor(new EventGUICommand(eventManagers, progressGUI));
+            Bukkit.getLogger().info("[EventPlugin] Event GUI command registered");
+        }
+
         // Register /fullmoon command
         PluginCommand fullMoonCmd = getCommand("fullmoon");
         if (fullMoonCmd != null && fullMoonManager != null) {
-            fullMoonCmd.setExecutor(new FullMoonCommand(fullMoonManager, mapSelectionGUI, questGUI, adminQuestRewardGUI));
+            fullMoonCmd.setExecutor(new FullMoonCommand(fullMoonManager, mapSelectionGUI, adminQuestRewardGUI));
             Bukkit.getLogger().info("[EventPlugin] Full Moon command registered");
+        }
+
+        // Register /fullmoon_quests command
+        PluginCommand fullMoonQuestsCmd = getCommand("fullmoon_quests");
+        if (fullMoonQuestsCmd != null && fullMoonManager != null && questGUI != null) {
+            fullMoonQuestsCmd.setExecutor(new FullMoonQuestsCommand(fullMoonManager, questGUI));
+            Bukkit.getLogger().info("[EventPlugin] Full Moon quests command registered");
         }
     }
 

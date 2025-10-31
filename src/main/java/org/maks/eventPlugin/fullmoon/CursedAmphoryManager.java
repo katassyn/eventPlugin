@@ -41,7 +41,7 @@ public class CursedAmphoryManager {
     // 1 hour in ticks (20 ticks = 1 second)
     private static final long NORMAL_SPAWN_INTERVAL = 20L * 60L * 60L; // 72000 ticks = 1 hour
     private static final long DEBUG_SPAWN_INTERVAL = 20L * 60L; // 1200 ticks = 1 minute (for testing)
-    private static final double SPAWN_CHANCE = 1.0; // 100% chance to spawn each hour
+    private static final double SPAWN_CHANCE = 0.05; // 5% chance to spawn each hour
 
     public CursedAmphoryManager(JavaPlugin plugin, FullMoonManager fullMoonManager, ConfigManager config) {
         this.plugin = plugin;
@@ -67,7 +67,7 @@ public class CursedAmphoryManager {
             }
 
             trySpawnAmphory();
-        }, 0L, spawnInterval); // Uruchom natychmiast (0L), A potem co spawnInterval
+        }, spawnInterval, spawnInterval); // Pierwsza próba po spawnInterval, potem co spawnInterval
 
         if (debugMode) {
             plugin.getLogger().info("[Full Moon] Cursed Amphory spawn system started in DEBUG MODE (1 minute interval)");

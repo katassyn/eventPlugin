@@ -7,7 +7,6 @@ import org.bukkit.entity.Player;
 import org.maks.eventPlugin.fullmoon.FullMoonManager;
 import org.maks.eventPlugin.fullmoon.gui.AdminQuestRewardEditorGUI;
 import org.maks.eventPlugin.fullmoon.gui.MapSelectionGUI;
-import org.maks.eventPlugin.fullmoon.gui.QuestGUI;
 
 /**
  * Command handler for /fullmoon.
@@ -17,13 +16,11 @@ public class FullMoonCommand implements CommandExecutor {
 
     private final FullMoonManager fullMoonManager;
     private final MapSelectionGUI mapSelectionGUI;
-    private final QuestGUI questGUI;
     private final AdminQuestRewardEditorGUI adminQuestRewardGUI;
 
-    public FullMoonCommand(FullMoonManager fullMoonManager, MapSelectionGUI mapSelectionGUI, QuestGUI questGUI, AdminQuestRewardEditorGUI adminQuestRewardGUI) {
+    public FullMoonCommand(FullMoonManager fullMoonManager, MapSelectionGUI mapSelectionGUI, AdminQuestRewardEditorGUI adminQuestRewardGUI) {
         this.fullMoonManager = fullMoonManager;
         this.mapSelectionGUI = mapSelectionGUI;
-        this.questGUI = questGUI;
         this.adminQuestRewardGUI = adminQuestRewardGUI;
     }
 
@@ -63,17 +60,10 @@ public class FullMoonCommand implements CommandExecutor {
                 }
                 mapSelectionGUI.open(player);
             }
-            case "quests", "quest" -> {
-                if (!player.hasPermission("eventplugin.fullmoon.quests")) {
-                    player.sendMessage("§cYou don't have permission to use this command!");
-                    return true;
-                }
-                questGUI.open(player);
-            }
             default -> {
                 player.sendMessage("§c§l[Full Moon] §7Available commands:");
                 player.sendMessage("§e/fullmoon §7- Open difficulty selection");
-                player.sendMessage("§e/fullmoon quests §7- View quest progress");
+                player.sendMessage("§e/fullmoon_quests §7- View quest progress");
                 player.sendMessage("§e/fullmoon admin §7- Admin commands");
             }
         }

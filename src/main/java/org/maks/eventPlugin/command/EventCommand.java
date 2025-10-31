@@ -18,7 +18,6 @@ public class EventCommand implements CommandExecutor {
     private final PlayerProgressGUI progressGUI;
     private final AdminRewardEditorGUI rewardGUI;
     private final org.maks.eventPlugin.config.ConfigManager config;
-    private org.maks.eventPlugin.gui.EventsMainGUI eventsMainGUI;
     private FullMoonManager fullMoonManager;
 
     public EventCommand(Map<String, EventManager> events, DatabaseManager database,
@@ -32,13 +31,6 @@ public class EventCommand implements CommandExecutor {
     }
 
     /**
-     * Set the EventsMainGUI instance (called after initialization).
-     */
-    public void setEventsMainGUI(org.maks.eventPlugin.gui.EventsMainGUI eventsMainGUI) {
-        this.eventsMainGUI = eventsMainGUI;
-    }
-
-    /**
      * Set the FullMoonManager instance (called after initialization).
      */
     public void setFullMoonManager(FullMoonManager fullMoonManager) {
@@ -49,21 +41,6 @@ public class EventCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) return false;
         switch (args[0].toLowerCase()) {
-            case "hub" -> {
-                if (!(sender instanceof Player player)) {
-                    sender.sendMessage("§cThis command can only be used by players!");
-                    return true;
-                }
-                if (!player.hasPermission("eventplugin.hub")) {
-                    player.sendMessage("§cYou don't have permission to use the events hub!");
-                    return true;
-                }
-                if (eventsMainGUI != null) {
-                    eventsMainGUI.open(player);
-                } else {
-                    player.sendMessage("§cEvents hub is not available!");
-                }
-            }
             case "start" -> {
                 if (!sender.hasPermission("eventplugin.admin")) return true;
                 if (args.length < 2) {
@@ -112,35 +89,6 @@ public class EventCommand implements CommandExecutor {
                 } else {
                     sender.sendMessage("Event not found: " + id);
                 }
-            }
-            case "gui" -> {
-                if (!(sender instanceof Player player)) return true;
-                // Prefer an explicitly provided ID; otherwise choose the first ACTIVE event
-                String id = null;
-                if (args.length >= 2) {
-                    id = args[1];
-                } else {
-                    id = events.entrySet().stream()
-                            .filter(e -> e.getValue() != null && e.getValue().isActive())
-                            .map(Map.Entry::getKey)
-                            .findFirst()
-                            .orElse(null);
-                }
-                if (id == null) {
-                    player.sendMessage("No active event.");
-                    return true;
-                }
-                EventManager m = events.get(id);
-                if (m == null || !m.isActive()) {
-                    player.sendMessage("Event not active.");
-                    return true;
-                }
-                m.checkExpiry();
-                if (!m.isActive()) {
-                    player.sendMessage("Event expired.");
-                    return true;
-                }
-                progressGUI.open(player, m);
             }
             case "rewards" -> {
                 if (!(sender instanceof Player player)) return true;

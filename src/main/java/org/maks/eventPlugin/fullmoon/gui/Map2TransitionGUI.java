@@ -87,7 +87,7 @@ public class Map2TransitionGUI implements Listener {
         if (isHard && entryCost > 0) {
             acceptLore.add("§7Entry Cost: §6" + entryCost + " IPS");
             if (!canAfford) {
-                int playerIPS = PouchHelper.getItemQuantity(player, "ips");
+                int playerIPS = PouchHelper.getTotalItemQuantity(player, "ips");
                 acceptLore.add("§cYou have: §6" + playerIPS + " IPS");
                 acceptLore.add("§cNeed: §6" + (entryCost - playerIPS) + " more IPS");
             }
@@ -162,14 +162,14 @@ public class Map2TransitionGUI implements Listener {
                     return;
                 }
 
-                player.sendMessage("§e§l[Full Moon] §7Consumed §6" + entryCost + " IPS");
+                // Silent - no consumption message
             }
 
             player.closeInventory();
             enterBloodMoonArena(player, entryCost); // Przekaż entryCost do zwrotu w razie błędu
         } else if (slot == DECLINE_SLOT) {
             player.closeInventory();
-            player.sendMessage("§e§l[Full Moon] §eYou chose to stay. Good luck hunting!");
+            // Silent - no decline message
         }
     }
 
@@ -182,14 +182,18 @@ public class Map2TransitionGUI implements Listener {
      * Create a Map 2 instance and teleport the player.
      */
     private void enterBloodMoonArena(Player player, int entryCost) {
-        player.sendMessage("§c§l[Full Moon] §eCreating Blood Moon Arena instance...");
+        // Silent - no loading message
         boolean isHard = fullMoonManager.isHardMode(player.getUniqueId());
+
+        // Debug logging
+        String difficulty = fullMoonManager.getPlayerDifficulty(player.getUniqueId());
+        Bukkit.getLogger().info("[Full Moon] Player " + player.getName() + " entering Map2 with difficulty: " + difficulty + " (isHard=" + isHard + ")");
 
         // Run instance creation asynchronously to avoid blocking
         Bukkit.getScheduler().runTaskAsynchronously(
                 Bukkit.getPluginManager().getPlugin("EventPlugin"),
                 () -> {
-                    Map2Instance instance = fullMoonManager.getMap2InstanceManager().createInstance(player);
+                    Map2Instance instance = fullMoonManager.getMap2InstanceManager().createInstance(player, isHard);
 
                     if (instance == null) {
                         player.sendMessage("§c§l[Full Moon] §cFailed to create arena instance! (Perhaps no free slots)");
@@ -224,15 +228,11 @@ public class Map2TransitionGUI implements Listener {
                                 player.teleport(spawnLoc);
                                 // --- KONIEC POPRAWKI ---
 
-                                // Initialize boss sequence
+                                // Initialize boss sequence (difficulty is stored in instance)
                                 fullMoonManager.getMap2BossSequenceManager()
-                                        .initializeBossSequence(instance, player, isHard);
+                                        .initializeBossSequence(instance, player);
 
-                                player.sendTitle(
-                                        "§4§lBLOOD MOON ARENA",
-                                        "§cDefeat the Blood Mage Disciples!",
-                                        10, 80, 20
-                                );
+                                // Silent - no title screen
                             }
                     );
                 }

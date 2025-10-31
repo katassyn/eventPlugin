@@ -168,11 +168,6 @@ public class MapSelectionGUI implements Listener {
         // Execute warp command as console (player may not have permission)
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "warp " + warpName + " " + player.getName());
 
-        player.sendMessage("§a§l[Full Moon] §aWarping to " + (difficulty.equalsIgnoreCase("hard") ? "§cHard" : "§eNormal") + " §amode...");
-        player.sendTitle(
-                "§6§lFull Moon",
-                (difficulty.equalsIgnoreCase("hard") ? "§c§lHARD MODE" : "§e§lNORMAL MODE"),
-                10, 60, 20
-        );
+        // Silent warp - no messages
     }
 }

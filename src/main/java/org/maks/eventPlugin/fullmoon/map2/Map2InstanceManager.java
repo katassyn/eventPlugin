@@ -1,25 +1,16 @@
 package org.maks.eventPlugin.fullmoon.map2;
 
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
-import com.sk89q.worldedit.function.operation.Operation;
-import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.session.ClipboardHolder;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Vector;
 import org.maks.eventPlugin.config.ConfigManager;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,6 +22,7 @@ public class Map2InstanceManager {
 
     private final JavaPlugin plugin;
     private final ConfigManager config;
+    private final SchematicHandler schematicHandler;
 
     // Active instances: Player UUID -> Instance
     private final Map<UUID, Map2Instance> activeInstances = new ConcurrentHashMap<>();
@@ -51,14 +43,16 @@ public class Map2InstanceManager {
     private int maxZ = -2100;
     private String worldName = "world";
 
-    // Schematic size from config (TYLKO JAKO FALLBACK, POWINNIŚMY UŻYWAĆ FAKTYCZNEGO ROZMIARU)
-    private int schematicSizeX_config = 172;
-    private int schematicSizeY_config = 52;
-    private int schematicSizeZ_config = 321;
+    // Marker materials from config
+    private Material mobMarker = Material.GRASS_BLOCK;
+    private Material miniBossMarker = Material.OBSIDIAN;
+    private Material finalBossMarker = Material.DIAMOND_BLOCK;
+    private Material playerSpawnMarker = Material.GOLD_BLOCK;
 
     public Map2InstanceManager(JavaPlugin plugin, ConfigManager config) {
         this.plugin = plugin;
         this.config = config;
+        this.schematicHandler = new WorldEditSchematicHandler(config);
         loadConfig();
     }
 
@@ -68,14 +62,6 @@ public class Map2InstanceManager {
             schematicName = schematicSection.getString("file_name", "blood_moon_arena");
             spacing = schematicSection.getInt("spacing", 100);
             maxInstances = schematicSection.getInt("max_instances", 4);
-
-            // Load schematic size
-            var sizeSection = schematicSection.getConfigurationSection("size");
-            if (sizeSection != null) {
-                schematicSizeX_config = sizeSection.getInt("x", 172);
-                schematicSizeY_config = sizeSection.getInt("y", 52);
-                schematicSizeZ_config = sizeSection.getInt("z", 321);
-            }
 
             // Load spawn area
             var spawnAreaSection = schematicSection.getConfigurationSection("spawn_area");
@@ -87,20 +73,41 @@ public class Map2InstanceManager {
                 maxZ = spawnAreaSection.getInt("max_z", -2100);
                 worldName = spawnAreaSection.getString("world", "world");
             }
+
+            // Load marker materials
+            var scanBlocksSection = schematicSection.getConfigurationSection("scan_blocks");
+            if (scanBlocksSection != null) {
+                String mobMarkerName = scanBlocksSection.getString("mob_spawn", "GRASS_BLOCK");
+                String miniBossMarkerName = scanBlocksSection.getString("mini_boss", "OBSIDIAN");
+                String finalBossMarkerName = scanBlocksSection.getString("final_boss", "DIAMOND_BLOCK");
+                String playerSpawnMarkerName = scanBlocksSection.getString("player_spawn", "GOLD_BLOCK");
+
+                mobMarker = Material.getMaterial(mobMarkerName.toUpperCase());
+                miniBossMarker = Material.getMaterial(miniBossMarkerName.toUpperCase());
+                finalBossMarker = Material.getMaterial(finalBossMarkerName.toUpperCase());
+                playerSpawnMarker = Material.getMaterial(playerSpawnMarkerName.toUpperCase());
+
+                if (mobMarker == null) mobMarker = Material.GRASS_BLOCK;
+                if (miniBossMarker == null) miniBossMarker = Material.OBSIDIAN;
+                if (finalBossMarker == null) finalBossMarker = Material.DIAMOND_BLOCK;
+                if (playerSpawnMarker == null) playerSpawnMarker = Material.GOLD_BLOCK;
+            }
         }
 
-        plugin.getLogger().info("[Full Moon] Map2 area: X(" + minX + " to " + maxX + ") Z(" + minZ + " to " + maxZ + ")");
-        plugin.getLogger().info("[Full Moon] Config schematic size (fallback): " + schematicSizeX_config + "x" + schematicSizeY_config + "x" + schematicSizeZ_config);
-        plugin.getLogger().info("[Full Moon] Max instances: " + maxInstances + ", Spacing: " + spacing);
+        config.debug("[Full Moon] Map2 area: X(" + minX + " to " + maxX + ") Z(" + minZ + " to " + maxZ + ")");
+        config.debug("[Full Moon] Max instances: " + maxInstances + ", Spacing: " + spacing);
+        config.debug("[Full Moon] Markers: Mob=" + mobMarker + ", MiniBoss=" + miniBossMarker +
+                ", FinalBoss=" + finalBossMarker + ", PlayerSpawn=" + playerSpawnMarker);
     }
 
     /**
      * Create a new Map 2 instance for a player.
      *
      * @param player The player
+     * @param isHard Whether this is hard mode
      * @return The created instance, or null if failed
      */
-    public Map2Instance createInstance(Player player) {
+    public Map2Instance createInstance(Player player, boolean isHard) {
         // Check if player already has an active instance
         if (activeInstances.containsKey(player.getUniqueId())) {
             player.sendMessage("§c§l[Full Moon] §cYou already have an active arena instance!");
@@ -114,7 +121,7 @@ public class Map2InstanceManager {
             return null;
         }
 
-        // Load schematic
+        // Load schematic file
         File schematicFile = new File(plugin.getDataFolder(), "schematics/" + schematicName + ".schem");
         if (!schematicFile.exists()) {
             schematicFile = new File(plugin.getDataFolder(), "schematics/" + schematicName + ".schematic");
@@ -126,28 +133,6 @@ public class Map2InstanceManager {
             return null;
         }
 
-        Clipboard clipboard;
-        BlockVector3 size;
-
-        try {
-            ClipboardFormat format = ClipboardFormats.findByFile(schematicFile);
-            if (format == null) {
-                player.sendMessage("§c§l[Full Moon] §cUnsupported schematic format!");
-                return null;
-            }
-
-            try (ClipboardReader reader = format.getReader(new FileInputStream(schematicFile))) {
-                clipboard = reader.read();
-                // Pobierz FAKTYCZNY rozmiar ze schematu (od min do max)
-                size = clipboard.getRegion().getMaximumPoint().subtract(clipboard.getRegion().getMinimumPoint()).add(1, 1, 1);
-            }
-        } catch (Exception e) {
-            player.sendMessage("§c§l[Full Moon] §cFailed to load arena schematic!");
-            plugin.getLogger().warning("[Full Moon] Failed to load schematic: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
-
         // Get world
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
@@ -156,33 +141,41 @@ public class Map2InstanceManager {
             return null;
         }
 
-        // --- POCZĄTEK POPRAWKI (Problem #2) ---
-        // Użyj FAKTYCZNEGO rozmiaru schematu (size), a nie rozmiaru z configu
-        Location origin = findFreeLocation(world, size);
+        // Find free location for the instance
+        Location origin = findFreeLocation(world);
         if (origin == null) {
             player.sendMessage("§c§l[Full Moon] §cNo space available for arena instance!");
             return null;
         }
 
-        // Użyj FAKTYCZNEGO rozmiaru (size) do stworzenia instancji
-        Map2Instance instance = new Map2Instance(player.getUniqueId(), origin, size);
-        // --- KONIEC POPRAWKI ---
+        // Paste schematic and get result with marker locations
+        SchematicHandler.PasteResult pasteResult;
+        try {
+            SchematicHandler.MarkerConfiguration markerConfig = new SchematicHandler.MarkerConfiguration(
+                    mobMarker,
+                    miniBossMarker,
+                    finalBossMarker,
+                    playerSpawnMarker
+            );
 
-        // Paste schematic
-        if (!pasteSchematic(clipboard, origin)) {
+            pasteResult = schematicHandler.pasteSchematic(schematicFile, world, origin, markerConfig);
+        } catch (Exception e) {
             player.sendMessage("§c§l[Full Moon] §cFailed to create arena instance!");
-            // Zwolnij miejsce, jeśli wklejanie się nie powiodło
-            occupiedRanges.removeIf(range -> range.minX == origin.getBlockX() && range.minZ == origin.getBlockZ());
+            plugin.getLogger().warning("[Full Moon] Failed to paste schematic: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
 
+        // Create instance with paste result and difficulty
+        Map2Instance instance = new Map2Instance(config, player.getUniqueId(), origin, pasteResult, isHard);
 
-        // Mark space as occupied
+        // Calculate occupied space using actual region size
+        Vector regionSize = pasteResult.regionSize();
         CoordinateRange range = new CoordinateRange(
-                origin.getBlockX(),
-                origin.getBlockZ(),
-                origin.getBlockX() + size.getBlockX() + spacing,
-                origin.getBlockZ() + size.getBlockZ() + spacing
+                instance.getOrigin().getBlockX(),
+                instance.getOrigin().getBlockZ(),
+                instance.getOrigin().getBlockX() + (int) Math.ceil(regionSize.getX()) + spacing,
+                instance.getOrigin().getBlockZ() + (int) Math.ceil(regionSize.getZ()) + spacing
         );
         occupiedRanges.add(range);
 
@@ -192,57 +185,55 @@ public class Map2InstanceManager {
         // Start auto-cleanup timer (15 minutes)
         instance.startAutoCleanupTimer(() -> {
             removeInstance(player.getUniqueId());
-            plugin.getLogger().info("[Full Moon] Instance auto-cleaned after 15 minutes for " + player.getName());
+            config.debug("[Full Moon] Instance auto-cleaned after 15 minutes for " + player.getName());
         });
 
-        plugin.getLogger().info("[Full Moon] Created Map2 instance for " + player.getName() + " at " + origin);
+        config.debug("[Full Moon] Created Map2 instance for " + player.getName() + " at " + instance.getOrigin());
         return instance;
     }
 
     /**
      * Find a free location for a new instance within the configured spawn area.
+     * Uses a simple grid-based allocation system.
      */
-    private Location findFreeLocation(World world, BlockVector3 size) {
-
-        // --- POCZĄTEK POPRAWKI (Problem #2) ---
-        // Używamy FAKTYCZNEGO rozmiaru schematu (z parametru size) zamiast pól klasy
-        int sizeX = size.getBlockX();
-        int sizeZ = size.getBlockZ();
+    private Location findFreeLocation(World world) {
+        // Calculate grid dimensions based on max instances
+        int gridSize = (int) Math.ceil(Math.sqrt(maxInstances));
 
         // Handle negative Z coordinates
         int availableX = maxX - minX;
         int availableZ = Math.abs(maxZ - minZ);
 
-        // Calculate number of slots in each direction
-        int slotsX = availableX / (sizeX + spacing);
-        int slotsZ = availableZ / (sizeZ + spacing);
-        // --- KONIEC POPRAWKI ---
+        // Calculate spacing between grid slots
+        int slotSpacingX = availableX / gridSize;
+        int slotSpacingZ = availableZ / gridSize;
 
-        // Try each possible slot
-        for (int slotX = 0; slotX < slotsX; slotX++) {
-            for (int slotZ = 0; slotZ < slotsZ; slotZ++) {
-
-                // --- POCZĄTEK POPRAWKI (Problem #2) ---
-                int x = minX + (slotX * (sizeX + spacing));
+        // Try each possible grid slot
+        for (int slotX = 0; slotX < gridSize; slotX++) {
+            for (int slotZ = 0; slotZ < gridSize; slotZ++) {
+                int x = minX + (slotX * slotSpacingX);
                 int z;
 
                 // Ensure Z is calculated correctly (area goes from -863 to -2100)
                 if (maxZ < minZ) {
-                    z = minZ - (slotZ * (sizeZ + spacing));
+                    z = minZ - (slotZ * slotSpacingZ);
                 } else {
-                    z = minZ + (slotZ * (sizeZ + spacing));
+                    z = minZ + (slotZ * slotSpacingZ);
                 }
 
-                CoordinateRange testRange = new CoordinateRange(
-                        x,
-                        z,
-                        x + sizeX,
-                        z + sizeZ
-                );
-                // --- KONIEC POPRAWKI ---
+                // Check if this location is already occupied
+                Location testLocation = new Location(world, x, minY, z);
+                boolean occupied = false;
 
-                if (!isOverlapping(testRange)) {
-                    return new Location(world, x, minY, z);
+                for (CoordinateRange range : occupiedRanges) {
+                    if (range.contains(x, z)) {
+                        occupied = true;
+                        break;
+                    }
+                }
+
+                if (!occupied) {
+                    return testLocation;
                 }
             }
         }
@@ -250,49 +241,6 @@ public class Map2InstanceManager {
         return null; // No free location found
     }
 
-    /**
-     * Check if a coordinate range overlaps with any occupied ranges.
-     */
-    private boolean isOverlapping(CoordinateRange range) {
-        for (CoordinateRange occupied : occupiedRanges) {
-            if (range.intersects(occupied)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Paste a schematic at the given location.
-     */
-    private boolean pasteSchematic(Clipboard clipboard, Location origin) {
-        try {
-            BlockVector3 pastePos = BlockVector3.at(
-                    origin.getBlockX(),
-                    origin.getBlockY(),
-                    origin.getBlockZ()
-            );
-
-            try (EditSession editSession = WorldEdit.getInstance()
-                    .newEditSessionBuilder()
-                    .world(BukkitAdapter.adapt(origin.getWorld()))
-                    .build()) {
-
-                Operation operation = new ClipboardHolder(clipboard)
-                        .createPaste(editSession)
-                        .to(pastePos)
-                        .ignoreAirBlocks(false)
-                        .build();
-
-                Operations.complete(operation);
-                return true;
-            }
-        } catch (Exception e) {
-            plugin.getLogger().warning("[Full Moon] Failed to paste schematic: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
 
     /**
      * Get the active instance for a player.
@@ -315,7 +263,7 @@ public class Map2InstanceManager {
                             range.minZ == instance.getOrigin().getBlockZ()
             );
 
-            plugin.getLogger().info("[Full Moon] Removed Map2 instance for player " + playerId);
+            config.debug("[Full Moon] Removed Map2 instance for player " + playerId);
         }
     }
 
@@ -347,6 +295,10 @@ public class Map2InstanceManager {
             this.minZ = Math.min(minZ, maxZ);
             this.maxX = Math.max(minX, maxX);
             this.maxZ = Math.max(minZ, maxZ);
+        }
+
+        boolean contains(int x, int z) {
+            return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
         }
 
         boolean intersects(CoordinateRange other) {

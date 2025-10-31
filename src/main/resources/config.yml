@@ -1,3 +1,7 @@
+# Debug mode - shows detailed logs in console
+# Set to true to enable debug logging, false to disable (default: false)
+debug: false
+
 database:
   host: localhost
   port: "3306"
@@ -22,7 +26,7 @@ events:
   "full_moon":
     name: "Full Moon"
     active: false
-    duration_days: 3
+    duration_days: 5
     max_progress: 15000
     description: "The full moon rises over Warhlom! Battle werewolves and blood mages\n in this challenging event. Complete quests and venture into the Blood Moon\n arena to earn exclusive rewards!"
 

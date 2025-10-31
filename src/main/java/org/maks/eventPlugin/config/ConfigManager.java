@@ -62,4 +62,22 @@ public class ConfigManager {
         load();
     }
 
+    /**
+     * Check if debug mode is enabled in config.
+     * @return true if debug is enabled
+     */
+    public boolean isDebugEnabled() {
+        return config.getBoolean("debug", false);
+    }
+
+    /**
+     * Log a debug message if debug mode is enabled.
+     * @param message The message to log
+     */
+    public void debug(String message) {
+        if (isDebugEnabled()) {
+            plugin.getLogger().info("[DEBUG] " + message);
+        }
+    }
+
 }

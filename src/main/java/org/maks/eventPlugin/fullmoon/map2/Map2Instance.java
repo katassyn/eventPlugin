@@ -13,8 +13,12 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
+import org.maks.eventPlugin.config.ConfigManager;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -24,11 +28,19 @@ import java.util.UUID;
  */
 public class Map2Instance {
 
+    private final ConfigManager config;
     private final UUID playerId;
     private final UUID instanceId;
     private final Location origin;
     private final CuboidRegion region;
     private final World world;
+    private final boolean isHard; // Difficulty: hard mode or normal mode
+
+    // Marker locations from schematic
+    private final List<Location> mobSpawnLocations = new ArrayList<>();
+    private final List<Location> miniBossSpawnLocations = new ArrayList<>();
+    private final List<Location> finalBossSpawnLocations = new ArrayList<>();
+    private Location playerSpawnLocation;
 
     // Boss sequence tracking
     private final Set<UUID> spawnedEntities = new HashSet<>();
@@ -39,6 +51,7 @@ public class Map2Instance {
     // Lifecycle
     private BukkitTask cleanupTask;
     private BukkitTask autoCleanupTimer;
+    private final List<BukkitTask> countdownTasks = new ArrayList<>(); // For countdown messages
     private long createdAt;
 
     // Auto-cleanup after 15 minutes
@@ -47,21 +60,101 @@ public class Map2Instance {
     /**
      * Create a new Map2 instance.
      *
+     * @param config The config manager for debug logging
      * @param playerId The player who owns this instance
-     * @param origin The origin location (bottom corner of the schematic)
-     * @param size The size of the schematic (width, height, depth)
+     * @param origin The original paste origin location
+     * @param pasteResult The result from pasting the schematic
+     * @param isHard Whether this is hard mode (true) or normal mode (false)
      */
-    public Map2Instance(UUID playerId, Location origin, BlockVector3 size) {
+    public Map2Instance(ConfigManager config, UUID playerId, Location origin, SchematicHandler.PasteResult pasteResult, boolean isHard) {
+        this.config = config;
         this.playerId = playerId;
         this.instanceId = UUID.randomUUID();
-        this.origin = origin;
         this.world = origin.getWorld();
         this.createdAt = System.currentTimeMillis();
+        this.isHard = isHard;
 
-        // Create region for this instance
-        BlockVector3 min = BlockVector3.at(origin.getBlockX(), origin.getBlockY(), origin.getBlockZ());
-        BlockVector3 max = min.add(size);
+        // Apply the offset from WorldEdit to get the actual paste location
+        Vector appliedOffset = pasteResult.appliedOffset();
+        if (appliedOffset != null) {
+            this.origin = origin.clone().add(appliedOffset);
+        } else {
+            this.origin = origin.clone();
+        }
+
+        // Calculate actual region bounds using the minimum and maximum offsets
+        Vector minOffset = pasteResult.minimumOffset();
+        Vector maxOffset = pasteResult.maximumOffset();
+
+        BlockVector3 min;
+        BlockVector3 max;
+
+        if (minOffset != null && maxOffset != null) {
+            // Use actual offsets from schematic
+            min = BlockVector3.at(
+                    this.origin.getBlockX() + (int) Math.floor(minOffset.getX()),
+                    this.origin.getBlockY() + (int) Math.floor(minOffset.getY()),
+                    this.origin.getBlockZ() + (int) Math.floor(minOffset.getZ())
+            );
+            max = BlockVector3.at(
+                    this.origin.getBlockX() + (int) Math.floor(maxOffset.getX()),
+                    this.origin.getBlockY() + (int) Math.floor(maxOffset.getY()),
+                    this.origin.getBlockZ() + (int) Math.floor(maxOffset.getZ())
+            );
+        } else {
+            // Fallback: use region size
+            Vector size = pasteResult.regionSize();
+            min = BlockVector3.at(this.origin.getBlockX(), this.origin.getBlockY(), this.origin.getBlockZ());
+            max = min.add(
+                    (int) Math.ceil(size.getX()),
+                    (int) Math.ceil(size.getY()),
+                    (int) Math.ceil(size.getZ())
+            );
+        }
+
         this.region = new CuboidRegion(BukkitAdapter.adapt(world), min, max);
+
+        // Convert marker offsets to world locations
+        convertMarkersToLocations(pasteResult);
+
+        config.debug("[Full Moon] Map2Instance created with actual bounds: " +
+                "min(" + min.getX() + "," + min.getY() + "," + min.getZ() + ") " +
+                "max(" + max.getX() + "," + max.getY() + "," + max.getZ() + ")");
+    }
+
+    /**
+     * Convert marker offsets from the paste result to actual world locations.
+     */
+    private void convertMarkersToLocations(SchematicHandler.PasteResult pasteResult) {
+        // Mob spawn locations
+        for (SchematicHandler.BlockOffset offset : pasteResult.mobMarkerOffsets()) {
+            Location loc = origin.clone().add(offset.x(), offset.y(), offset.z()).add(0.5, 1.0, 0.5);
+            mobSpawnLocations.add(loc);
+        }
+
+        // Mini-boss spawn locations
+        for (SchematicHandler.BlockOffset offset : pasteResult.miniBossMarkerOffsets()) {
+            Location loc = origin.clone().add(offset.x(), offset.y(), offset.z()).add(0.5, 1.0, 0.5);
+            miniBossSpawnLocations.add(loc);
+        }
+
+        // Final boss spawn locations
+        for (SchematicHandler.BlockOffset offset : pasteResult.finalBossMarkerOffsets()) {
+            Location loc = origin.clone().add(offset.x(), offset.y(), offset.z()).add(0.5, 1.0, 0.5);
+            finalBossSpawnLocations.add(loc);
+        }
+
+        // Player spawn location
+        if (!pasteResult.playerSpawnMarkerOffsets().isEmpty()) {
+            SchematicHandler.BlockOffset offset = pasteResult.playerSpawnMarkerOffsets().get(0);
+            playerSpawnLocation = origin.clone().add(offset.x(), offset.y(), offset.z()).add(0.5, 1.0, 0.5);
+        }
+
+        config.debug("[Full Moon] Markers found: " +
+                mobSpawnLocations.size() + " mobs, " +
+                miniBossSpawnLocations.size() + " mini-bosses, " +
+                finalBossSpawnLocations.size() + " final bosses, " +
+                (playerSpawnLocation != null ? "1" : "0") + " player spawn");
     }
 
     public UUID getPlayerId() {
@@ -80,8 +173,44 @@ public class Map2Instance {
         return world;
     }
 
+    /**
+     * Check if this instance is hard mode.
+     * @return true if hard mode, false if normal mode
+     */
+    public boolean isHard() {
+        return isHard;
+    }
+
     public CuboidRegion getRegion() {
         return region;
+    }
+
+    /**
+     * Get mob spawn locations from schematic markers.
+     */
+    public List<Location> getMobSpawnLocations() {
+        return new ArrayList<>(mobSpawnLocations);
+    }
+
+    /**
+     * Get mini-boss spawn locations from schematic markers.
+     */
+    public List<Location> getMiniBossSpawnLocations() {
+        return new ArrayList<>(miniBossSpawnLocations);
+    }
+
+    /**
+     * Get final boss spawn locations from schematic markers.
+     */
+    public List<Location> getFinalBossSpawnLocations() {
+        return new ArrayList<>(finalBossSpawnLocations);
+    }
+
+    /**
+     * Get player spawn location from schematic marker.
+     */
+    public Location getPlayerSpawnLocation() {
+        return playerSpawnLocation != null ? playerSpawnLocation.clone() : null;
     }
 
     /**
@@ -157,29 +286,7 @@ public class Map2Instance {
             autoCleanupTimer.cancel();
         }
 
-        // Warning at 5 minutes remaining
-        Bukkit.getScheduler().runTaskLater(
-                Bukkit.getPluginManager().getPlugin("EventPlugin"),
-                () -> {
-                    Player player = Bukkit.getPlayer(playerId);
-                    if (player != null && player.isOnline()) {
-                        player.sendMessage("§e§l[Full Moon] §7Your arena instance will expire in §c5 minutes§7!");
-                    }
-                },
-                (AUTO_CLEANUP_TIME - (5 * 60 * 20L))  // 10 minutes in
-        );
-
-        // Warning at 1 minute remaining
-        Bukkit.getScheduler().runTaskLater(
-                Bukkit.getPluginManager().getPlugin("EventPlugin"),
-                () -> {
-                    Player player = Bukkit.getPlayer(playerId);
-                    if (player != null && player.isOnline()) {
-                        player.sendMessage("§c§l[Full Moon] §7Your arena instance will expire in §c1 minute§7!");
-                    }
-                },
-                (AUTO_CLEANUP_TIME - (1 * 60 * 20L))  // 14 minutes in
-        );
+        // Silent expiration warnings removed
 
         // Final cleanup after 15 minutes
         autoCleanupTimer = Bukkit.getScheduler().runTaskLater(
@@ -187,8 +294,7 @@ public class Map2Instance {
                 () -> {
                     Player player = Bukkit.getPlayer(playerId);
                     if (player != null && player.isOnline()) {
-                        player.sendMessage("§c§l[Full Moon] §cYour arena instance has expired (15 minutes)!");
-                        player.sendMessage("§7Teleporting you to spawn...");
+                        // Silent cleanup - no messages
                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + player.getName());
                     }
                     onCleanup.run();
@@ -196,7 +302,7 @@ public class Map2Instance {
                 AUTO_CLEANUP_TIME
         );
 
-        Bukkit.getLogger().info("[Full Moon] Auto-cleanup timer started for instance " + instanceId + " (15 minutes)");
+        config.debug("[Full Moon] Auto-cleanup timer started for instance " + instanceId + " (15 minutes)");
     }
 
     /**
@@ -220,6 +326,39 @@ public class Map2Instance {
                 onCleanup,
                 delaySeconds * 20L
         );
+    }
+
+    /**
+     * Cancel any scheduled cleanup tasks (manual cleanup or auto-cleanup).
+     * Useful when player dies or leaves before cleanup completes.
+     */
+    public void cancelScheduledCleanup() {
+        if (cleanupTask != null) {
+            cleanupTask.cancel();
+            cleanupTask = null;
+        }
+
+        if (autoCleanupTimer != null) {
+            autoCleanupTimer.cancel();
+            autoCleanupTimer = null;
+        }
+
+        // Cancel all countdown message tasks
+        for (BukkitTask task : countdownTasks) {
+            if (task != null) {
+                task.cancel();
+            }
+        }
+        countdownTasks.clear();
+
+        config.debug("[Full Moon] Cancelled scheduled cleanup for instance " + instanceId);
+    }
+
+    /**
+     * Add a countdown task to be tracked (so it can be cancelled later).
+     */
+    public void addCountdownTask(BukkitTask task) {
+        countdownTasks.add(task);
     }
 
     /**
@@ -280,7 +419,7 @@ public class Map2Instance {
         removeEntities();
         clearBlocks();
 
-        Bukkit.getLogger().info("[Full Moon] Instance " + instanceId + " cleaned up");
+        config.debug("[Full Moon] Instance " + instanceId + " cleaned up");
     }
 
     /**

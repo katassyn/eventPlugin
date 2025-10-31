@@ -31,12 +31,17 @@ public class Map2PlayerListener implements Listener {
 
         if (instance != null) {
             Bukkit.getLogger().info("[Full Moon] Player " + player.getName() + " disconnected, cleaning up Map2 instance");
+
+            // Cancel any scheduled cleanup tasks (60s countdown, etc.)
+            instance.cancelScheduledCleanup();
+
+            // Remove instance immediately
             fullMoonManager.getMap2InstanceManager().removeInstance(player.getUniqueId());
         }
     }
 
     /**
-     * Handle player death in Map 2 - teleport to spawn and cleanup instance after delay.
+     * Handle player death in Map 2 - cancel countdown and cleanup instance after delay.
      */
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
@@ -49,24 +54,19 @@ public class Map2PlayerListener implements Listener {
         player.sendMessage("§c§l[Full Moon] §cYou have died in the Blood Moon Arena!");
         player.sendMessage("§7Your instance will be removed shortly...");
 
-        // Schedule teleport to spawn and cleanup
+        // IMPORTANT: Cancel any scheduled cleanup tasks (60s countdown after boss death)
+        instance.cancelScheduledCleanup();
+
+        // Schedule immediate cleanup
         Bukkit.getScheduler().runTaskLater(
                 Bukkit.getPluginManager().getPlugin("EventPlugin"),
                 () -> {
-                    // --- POCZĄTEK POPRAWKI: Usunięcie zbędnego teleportu ---
-                    // Gracz już jest martwy i sam się zrespi na spawn.
-                    // Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "spawn " + player.getName());
-                    // --- KONIEC POPRAWKI ---
-
-                    // Cleanup instance
+                    // Cleanup instance immediately (don't wait for countdown)
                     fullMoonManager.getMap2InstanceManager().removeInstance(player.getUniqueId());
 
-                    // Wyślij wiadomość dopiero gdy gracz jest online (po respawnie)
-                    if (player.isOnline()) {
-                        player.sendMessage("§e§l[Full Moon] §7Your arena instance has been removed.");
-                    }
+                    // Silent cleanup - no messages
                 },
-                5 * 20L  // 5 seconds (czas na kliknięcie respawn)
+                5 * 20L  // 5 seconds (time to click respawn)
         );
     }
 }

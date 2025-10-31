@@ -7,12 +7,24 @@ softdepend: [MythicMobs, Essentials, FastAsyncWorldEdit, IngredientPouchPlugin]
 commands:
   event:
     description: Main event command
-    usage: /event <start|stop|gui|rewards|hub>
+    usage: /event <start|stop|rewards>
     permission: eventplugin.event
+  event_hub:
+    description: Opens the events hub GUI
+    usage: /event_hub
+    permission: eventplugin.hub
+  event_gui:
+    description: Opens the event progress GUI
+    usage: /event_gui [event_id]
+    permission: eventplugin.event.gui
   fullmoon:
     description: Full Moon event command
-    usage: /fullmoon [gui|quests|admin]
+    usage: /fullmoon [gui|admin]
     permission: eventplugin.fullmoon
+  fullmoon_quests:
+    description: Opens the Full Moon quest GUI
+    usage: /fullmoon_quests
+    permission: eventplugin.fullmoon_quests
 
 permissions:
   eventplugin.admin:
@@ -21,18 +33,21 @@ permissions:
   eventplugin.event:
     description: Access to /event command
     default: op
+  eventplugin.event.gui:
+    description: Access to event progress GUI
+    default: false
   eventplugin.hub:
     description: Access to the events hub GUI
-    default: false
+    default: true
   eventplugin.fullmoon:
     description: Access to /fullmoon command
     default: false
   eventplugin.fullmoon.gui:
     description: Access to Full Moon map selection GUI
     default: false
-  eventplugin.fullmoon.quests:
+  eventplugin.fullmoon_quests:
     description: Access to Full Moon quest GUI
-    default: false
+    default: true
   eventplugin.fullmoon.admin:
     description: Admin access to Full Moon commands
     default: op
