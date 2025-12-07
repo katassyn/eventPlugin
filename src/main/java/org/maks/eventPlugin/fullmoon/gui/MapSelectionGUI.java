@@ -106,7 +106,13 @@ public class MapSelectionGUI implements Listener {
             if (player.getLevel() < 75) {
                 hardLore.add("§cYou need level 75+");
             }
-            // TODO: Add IPS check message when implemented
+            // Pobierz koszt IPS, aby wyświetlić poprawną wiadomość
+            int requiredIPS = fullMoonManager.getConfig()
+                    .getSection("full_moon.requirements.hard")
+                    .getInt("ips", 15);
+            if (!org.maks.eventPlugin.fullmoon.integration.PouchHelper.hasEnough(player, "ips", requiredIPS)) {
+                hardLore.add("§cYou need " + requiredIPS + " IPS");
+            }
         }
 
         hardMeta.setLore(hardLore);
@@ -139,13 +145,41 @@ public class MapSelectionGUI implements Listener {
                 player.sendMessage("§cRequired: Level 50+");
             }
         } else if (slot == HARD_SLOT) {
+            // --- START FIX ---
+            // Pobierz koszt IPS z konfiguracji
+            int requiredIPS = fullMoonManager.getConfig()
+                    .getSection("full_moon.requirements.hard")
+                    .getInt("ips", 15);
+
+            // Sprawdź wymagania (poziom ORAZ IPS)
             if (fullMoonManager.meetsHardRequirements(player)) {
-                player.closeInventory();
-                warpPlayer(player, "hard");
+
+                // Pobierz IPS
+                if (org.maks.eventPlugin.fullmoon.integration.PouchHelper.consumeItem(player, "ips", requiredIPS)) {
+                    // Sukces
+                    player.closeInventory();
+                    warpPlayer(player, "hard");
+                    // (Ciche pobranie)
+                } else {
+                    // To nie powinno się zdarzyć, jeśli meetsHardRequirements działa poprawnie, ale dla pewności
+                    player.sendMessage("§c§l[Full Moon] §cFailed to consume " + requiredIPS + " IPS!");
+                    player.sendMessage("§cPlease ensure you have them in your pouch or inventory.");
+                    player.closeInventory();
+                }
+
             } else {
+                // Wymagania nie zostały spełnione
                 player.sendMessage("§c§l[Full Moon] §cYou don't meet the requirements for Hard mode!");
-                player.sendMessage("§cRequired: Level 75+ and 15 IPS");
+
+                // Podaj szczegółowy powód
+                if (player.getLevel() < 75) {
+                    player.sendMessage("§cRequired: Level 75+");
+                }
+                if (!org.maks.eventPlugin.fullmoon.integration.PouchHelper.hasEnough(player, "ips", requiredIPS)) {
+                    player.sendMessage("§cRequired: " + requiredIPS + " IPS (in pouch or inventory)");
+                }
             }
+            // --- END FIX ---
         }
     }
 

@@ -128,7 +128,7 @@ public class PouchHelper {
 
     /**
      * Consume items from a player's inventory and/or pouch.
-     * Tries inventory first, then pouch.
+     * Tries POUCH first, then INVENTORY.
      *
      * @param player The player
      * @param itemId The item ID
@@ -142,29 +142,48 @@ public class PouchHelper {
 
         int remaining = amount;
 
-        // First consume from inventory
-        remaining -= consumeItemFromInventory(player, itemId, remaining);
+        // --- START FIX: Consume from Pouch FIRST ---
+        if (apiAvailable) {
+            int pouchQuantity = getItemQuantity(player, itemId);
+            int toRemoveFromPouch = Math.min(remaining, pouchQuantity);
 
-        // Then consume from pouch if needed
-        if (remaining > 0 && apiAvailable) {
-            try {
-                Method updateItemQuantityMethod = pouchAPI.getClass()
-                        .getMethod("updateItemQuantity", String.class, String.class, int.class);
-                Object result = updateItemQuantityMethod.invoke(
-                        pouchAPI,
-                        player.getUniqueId().toString(),
-                        itemId,
-                        -remaining // Negative to remove
-                );
-                boolean success = (Boolean) result;
-                if (!success) {
-                    Bukkit.getLogger().warning("[EventPlugin] Failed to remove " + remaining + " " + itemId + " from pouch for player " + player.getName());
-                    return false;
+            if (toRemoveFromPouch > 0) {
+                try {
+                    Method updateItemQuantityMethod = pouchAPI.getClass()
+                            .getMethod("updateItemQuantity", String.class, String.class, int.class);
+                    Object result = updateItemQuantityMethod.invoke(
+                            pouchAPI,
+                            player.getUniqueId().toString(),
+                            itemId,
+                            -toRemoveFromPouch // Negative to remove
+                    );
+                    boolean success = (Boolean) result;
+
+                    if (success) {
+                        remaining -= toRemoveFromPouch;
+                    } else {
+                        Bukkit.getLogger().warning("[EventPlugin] Failed to remove " + toRemoveFromPouch + " " + itemId + " from pouch for player " + player.getName());
+                        // Nie zwracaj false, spróbuj jeszcze ekwipunek
+                    }
+                } catch (Exception e) {
+                    Bukkit.getLogger().warning("[EventPlugin] Failed to consume item from pouch: " + e.getMessage());
+                    // Nie zwracaj false, spróbuj jeszcze ekwipunek
                 }
-            } catch (Exception e) {
-                Bukkit.getLogger().warning("[EventPlugin] Failed to consume item from pouch: " + e.getMessage());
-                return false;
             }
+        }
+        // --- END FIX ---
+
+        // Then consume from inventory if needed
+        if (remaining > 0) {
+            int consumedFromInventory = consumeItemFromInventory(player, itemId, remaining);
+            remaining -= consumedFromInventory;
+        }
+
+        // Final check
+        if (remaining > 0) {
+            // To nie powinno się zdarzyć, jeśli hasEnough() działa poprawnie, ale jako zabezpieczenie
+            Bukkit.getLogger().warning("[EventPlugin] Failed to consume full amount of " + itemId + " for " + player.getName() + ". Remaining: " + remaining);
+            return false;
         }
 
         return true;

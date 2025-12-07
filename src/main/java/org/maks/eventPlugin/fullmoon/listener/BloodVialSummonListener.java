@@ -245,7 +245,23 @@ public class BloodVialSummonListener implements Listener {
             return;
         }
 
-        // 2. Jeśli Pouch niedostępny (lub pełny), stwórz item i daj do ekwipunku
+        // 2. Jeśli Pouch niedostępny (lub pełny), sprawdź miejsce w ekwipunku
+        // Check if player has inventory space
+        boolean hasSpace = false;
+        for (ItemStack item : player.getInventory().getStorageContents()) {
+            if (item == null || item.getType() == Material.AIR) {
+                hasSpace = true;
+                break;
+            }
+        }
+
+        if (!hasSpace) {
+            player.sendMessage("§c§l[Full Moon] §cYour inventory is full! Blood Vial could not be refunded.");
+            player.sendMessage("§c§lFree up space and the vial will be refunded next time.");
+            return;
+        }
+
+        // 3. Stwórz item i daj do ekwipunku
         ItemStack bloodVialItem = new ItemStack(Material.BEETROOT_SOUP, 1);
         ItemMeta meta = bloodVialItem.getItemMeta();
         meta.setDisplayName("§4Blood Vial");

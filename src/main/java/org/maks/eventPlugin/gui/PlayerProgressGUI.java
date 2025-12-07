@@ -12,9 +12,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.eventsystem.BuffManager;
+import org.maks.eventPlugin.eventsystem.Reward;
 import org.maks.eventPlugin.util.TimeUtil;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class PlayerProgressGUI implements Listener {
     /**
@@ -122,14 +124,7 @@ public class PlayerProgressGUI implements Listener {
             inv.setItem(slot, i < filled ? filledItem : emptyItem);
         }
 
-        ItemStack info = new ItemStack(Material.PAPER);
-        ItemMeta infoMeta = info.getItemMeta();
-        infoMeta.setDisplayName("§b" + eventManager.getName());
-        List<String> lore = new ArrayList<>(Arrays.asList(eventManager.getDescription().split("\\n")));
-        lore.add("Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining()));
-        infoMeta.setLore(lore);
-        info.setItemMeta(infoMeta);
-        inv.setItem(53, info);
+        // Moved to after reward processing to show hidden count
 
         boolean attrie = buffManager.hasBuff(player);
         ItemStack attrieItem = new ItemStack(Material.PAPER);
@@ -170,31 +165,94 @@ public class PlayerProgressGUI implements Listener {
             }
         }
 
-        Set<Integer> usedReward = new HashSet<>();
-        for (var reward : eventManager.getRewards()) {
-            // Map required progress to the index of the progress path using
-            // ceiling arithmetic so that a reward for progress slightly above
-            // a threshold still appears next to the correct glass pane. This
-            // mirrors the player's view where each pane represents an equal
-            // slice of the maximum progress.
+        // Sort rewards by required progress to maintain order
+        List<Reward> sortedRewards = new ArrayList<>(eventManager.getRewards());
+        sortedRewards.sort(Comparator.comparingInt(Reward::requiredProgress));
+
+        // Map each reward to its desired REWARD_SLOTS index
+        Map<Reward, Integer> rewardToSlotIndex = new HashMap<>();
+        for (var reward : sortedRewards) {
             long numerator = (long) reward.requiredProgress() * PATH_SLOTS.size() + max - 1;
             int pathIndex = (int) (numerator / Math.max(1, max)) - 1;
             if (pathIndex < 0) pathIndex = 0;
             if (pathIndex >= PATH_SLOTS.size()) pathIndex = PATH_SLOTS.size() - 1;
+            rewardToSlotIndex.put(reward, pathIndex);
+        }
 
-            int slot = -1;
-            for (int i = pathIndex; i < REWARD_SLOTS.size(); i++) {
-                int candidate = REWARD_SLOTS.get(i);
-                if (usedReward.add(candidate)) { slot = candidate; break; }
-            }
-            if (slot == -1) {
-                for (int i = pathIndex - 1; i >= 0; i--) {
-                    int candidate = REWARD_SLOTS.get(i);
-                    if (usedReward.add(candidate)) { slot = candidate; break; }
+        // Assign slots - shift rewards forward when needed
+        Map<Reward, Integer> assignedSlots = new HashMap<>();
+        int[] slotUsage = new int[REWARD_SLOTS.size()]; // 0 = free, 1 = used
+
+        for (var reward : sortedRewards) {
+            int desiredIndex = rewardToSlotIndex.get(reward);
+
+            // Check if desired slot is free
+            if (slotUsage[desiredIndex] == 0) {
+                // Slot is free, use it
+                assignedSlots.put(reward, desiredIndex);
+                slotUsage[desiredIndex] = 1;
+            } else {
+                // Slot is occupied - need to shift rewards forward
+                // Find first free slot from desiredIndex forward
+                int freeIndex = -1;
+                for (int i = desiredIndex; i < REWARD_SLOTS.size(); i++) {
+                    if (slotUsage[i] == 0) {
+                        freeIndex = i;
+                        break;
+                    }
                 }
 
+                if (freeIndex == -1) {
+                    // No free slot forward, try backward
+                    for (int i = desiredIndex - 1; i >= 0; i--) {
+                        if (slotUsage[i] == 0) {
+                            freeIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (freeIndex == -1) {
+                    // No free slots at all - skip this reward (very rare)
+                    continue;
+                }
+
+                // Shift all rewards between desiredIndex and freeIndex
+                if (freeIndex > desiredIndex) {
+                    // Shift forward: move rewards one slot forward
+                    for (int i = freeIndex; i > desiredIndex; i--) {
+                        slotUsage[i] = slotUsage[i - 1];
+                        // Update assignments
+                        for (Map.Entry<Reward, Integer> entry : assignedSlots.entrySet()) {
+                            if (entry.getValue() == i - 1) {
+                                assignedSlots.put(entry.getKey(), i);
+                            }
+                        }
+                    }
+                } else {
+                    // Shift backward: move rewards one slot backward
+                    for (int i = freeIndex; i < desiredIndex; i++) {
+                        slotUsage[i] = slotUsage[i + 1];
+                        // Update assignments
+                        for (Map.Entry<Reward, Integer> entry : assignedSlots.entrySet()) {
+                            if (entry.getValue() == i + 1) {
+                                assignedSlots.put(entry.getKey(), i);
+                            }
+                        }
+                    }
+                }
+
+                // Now desiredIndex is free
+                assignedSlots.put(reward, desiredIndex);
+                slotUsage[desiredIndex] = 1;
             }
-            if (slot == -1) continue;
+        }
+
+        // Place rewards in GUI using assigned slots
+        for (var entry : assignedSlots.entrySet()) {
+            var reward = entry.getKey();
+            int slotIndex = entry.getValue();
+            int slot = REWARD_SLOTS.get(slotIndex);
 
             ItemStack rewardItem = reward.item().clone();
             ItemMeta rm = rewardItem.getItemMeta();
@@ -216,6 +274,16 @@ public class PlayerProgressGUI implements Listener {
             inv.setItem(slot, rewardItem);
             session.rewardSlots.put(slot, reward.requiredProgress());
         }
+
+        // Info item (slot 53) - show event info
+        ItemStack info = new ItemStack(Material.PAPER);
+        ItemMeta infoMeta = info.getItemMeta();
+        infoMeta.setDisplayName("§b" + eventManager.getName());
+        List<String> infoLore = new ArrayList<>(Arrays.asList(eventManager.getDescription().split("\\n")));
+        infoLore.add("Ends in: " + TimeUtil.formatDuration(eventManager.getTimeRemaining()));
+        infoMeta.setLore(infoLore);
+        info.setItemMeta(infoMeta);
+        inv.setItem(53, info);
 
         // Add navigation arrows if multiple events exist
         if (session.eventIds.size() > 1) {

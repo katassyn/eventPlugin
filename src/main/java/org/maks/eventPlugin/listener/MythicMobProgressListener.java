@@ -47,7 +47,9 @@ public class MythicMobProgressListener implements Listener {
         for (EventManager manager : events.values()) {
             // +++ POCZĄTEK MODYFIKACJI +++
             // Ignore the full_moon event; it is handled by FullMoonMobListener
-            if (manager.getEventId().equalsIgnoreCase("full_moon")) {
+            // Ignore the winter_event; it is handled by WinterEventMobListener
+            if (manager.getEventId().equalsIgnoreCase("full_moon") ||
+                manager.getEventId().equalsIgnoreCase("winter_event")) {
                 continue;
             }
             // +++ KONIEC MODYFIKACJI +++

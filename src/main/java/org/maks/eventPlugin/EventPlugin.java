@@ -46,6 +46,21 @@ public final class EventPlugin extends JavaPlugin {
     private EventsMainGUI eventsMainGUI;
     private org.maks.eventPlugin.fullmoon.gui.AdminQuestRewardEditorGUI adminQuestRewardGUI;
 
+    // New Moon components
+    private org.maks.eventPlugin.newmoon.NewMoonManager newMoonManager;
+    private org.maks.eventPlugin.newmoon.gui.NewMoonQuestGUI newMoonQuestGUI;
+    private org.maks.eventPlugin.newmoon.gui.Map1SelectionGUI newMoonMap1SelectionGUI;
+    private org.maks.eventPlugin.newmoon.gui.PortalConfirmationGUI newMoonPortalGUI;
+    private org.maks.eventPlugin.newmoon.gui.AdminQuestRewardEditorGUI newMoonAdminQuestRewardGUI;
+
+    // Winter Event components
+    private org.maks.eventPlugin.winterevent.WinterEventManager winterEventManager;
+    private org.maks.eventPlugin.winterevent.summit.gui.DifficultySelectionGUI winterDifficultyGUI;
+    private org.maks.eventPlugin.winterevent.wintercave.gui.WinterCaveGUI winterCaveGUI;
+    private org.maks.eventPlugin.winterevent.wintercave.gui.WinterCaveRewardsGUI winterCaveRewardsGUI;
+    private org.maks.eventPlugin.winterevent.gui.WinterQuestGUI winterQuestGUI;
+    private org.maks.eventPlugin.winterevent.gui.AdminWinterQuestRewardEditorGUI winterAdminQuestRewardGUI;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -88,6 +103,68 @@ public final class EventPlugin extends JavaPlugin {
         // Initialize Full Moon components
         initializeFullMoon();
 
+        // Initialize New Moon components
+        initializeNewMoon();
+
+        // Initialize Winter Event components
+        initializeWinterEvent();
+
+        // Initialize Events Main GUI (requires both Full Moon and New Moon to be initialized)
+        if (fullMoonManager != null && newMoonManager != null) {
+            eventsMainGUI = new EventsMainGUI(
+                this,
+                eventManagers,
+                progressGUI,
+                fullMoonManager,
+                mapSelectionGUI,
+                questGUI,
+                newMoonManager,
+                newMoonMap1SelectionGUI,
+                newMoonQuestGUI,
+                winterEventManager,
+                winterDifficultyGUI,
+                winterCaveGUI,
+                databaseManager
+            );
+            Bukkit.getLogger().info("[EventPlugin] Events Main GUI initialized with both Full Moon and New Moon");
+        } else if (fullMoonManager != null) {
+            // Only Full Moon available - use null for New Moon parameters
+            eventsMainGUI = new EventsMainGUI(
+                this,
+                eventManagers,
+                progressGUI,
+                fullMoonManager,
+                mapSelectionGUI,
+                questGUI,
+                null,
+                null,
+                null,
+                winterEventManager,
+                winterDifficultyGUI,
+                winterCaveGUI,
+                databaseManager
+            );
+            Bukkit.getLogger().info("[EventPlugin] Events Main GUI initialized with Full Moon only");
+        } else if (newMoonManager != null) {
+            // Only New Moon available - use null for Full Moon parameters
+            eventsMainGUI = new EventsMainGUI(
+                this,
+                eventManagers,
+                progressGUI,
+                null,
+                null,
+                null,
+                newMoonManager,
+                newMoonMap1SelectionGUI,
+                newMoonQuestGUI,
+                winterEventManager,
+                winterDifficultyGUI,
+                winterCaveGUI,
+                databaseManager
+            );
+            Bukkit.getLogger().info("[EventPlugin] Events Main GUI initialized with New Moon only");
+        }
+
         if (getServer().getPluginManager().isPluginEnabled("MythicMobs")) {
             getServer().getPluginManager().registerEvents(new MythicMobProgressListener(eventManagers, buffManager), this);
 
@@ -99,6 +176,17 @@ public final class EventPlugin extends JavaPlugin {
                 getServer().getPluginManager().registerEvents(new Map2BossListener(fullMoonManager), this);
                 getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.fullmoon.listener.Map2PlayerListener(fullMoonManager), this);
                 Bukkit.getLogger().info("[EventPlugin] Full Moon listeners registered");
+            }
+
+            // Register New Moon listeners if event exists
+            if (newMoonManager != null) {
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.newmoon.listener.NewMoonMobListener(newMoonManager), this);
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.newmoon.listener.CauldronListener(newMoonManager), this);
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.newmoon.listener.LordRespawnListener(newMoonManager), this);
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.newmoon.listener.LordImmunityListener(newMoonManager), this);
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.newmoon.listener.PortalListener(newMoonManager, newMoonPortalGUI), this);
+                getServer().getPluginManager().registerEvents(new org.maks.eventPlugin.newmoon.listener.Map2PlayerListener(newMoonManager), this);
+                Bukkit.getLogger().info("[EventPlugin] New Moon listeners registered");
             }
         } else {
             Bukkit.getLogger().warning("MythicMobs not found - progress events disabled");
@@ -124,11 +212,26 @@ public final class EventPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(adminQuestRewardGUI, this);
         }
 
+        // Register New Moon GUIs
+        if (newMoonQuestGUI != null) {
+            getServer().getPluginManager().registerEvents(newMoonQuestGUI, this);
+        }
+        if (newMoonMap1SelectionGUI != null) {
+            getServer().getPluginManager().registerEvents(newMoonMap1SelectionGUI, this);
+        }
+        if (newMoonPortalGUI != null) {
+            getServer().getPluginManager().registerEvents(newMoonPortalGUI, this);
+        }
+        if (newMoonAdminQuestRewardGUI != null) {
+            getServer().getPluginManager().registerEvents(newMoonAdminQuestRewardGUI, this);
+        }
+
         // Register /event command
         PluginCommand cmd = getCommand("event");
         if (cmd != null) {
             EventCommand eventCommand = new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI, configManager);
             eventCommand.setFullMoonManager(fullMoonManager); // Pass FullMoonManager for quest reset
+            eventCommand.setNewMoonManager(newMoonManager); // Add New Moon Manager
             cmd.setExecutor(eventCommand);
         } else {
             Bukkit.getLogger().warning("Event command not found in plugin.yml");
@@ -161,6 +264,28 @@ public final class EventPlugin extends JavaPlugin {
             fullMoonQuestsCmd.setExecutor(new FullMoonQuestsCommand(fullMoonManager, questGUI));
             Bukkit.getLogger().info("[EventPlugin] Full Moon quests command registered");
         }
+
+        // Register /new_moon_quest command
+        PluginCommand newMoonQuestCmd = getCommand("new_moon_quest");
+        if (newMoonQuestCmd != null && newMoonManager != null && newMoonQuestGUI != null) {
+            newMoonQuestCmd.setExecutor(new org.maks.eventPlugin.newmoon.command.NewMoonQuestCommand(newMoonManager, newMoonQuestGUI));
+            Bukkit.getLogger().info("[EventPlugin] New Moon quest command registered");
+        }
+
+        // Register /new_moon command
+        PluginCommand newMoonCmd = getCommand("new_moon");
+        if (newMoonCmd != null && newMoonManager != null) {
+            newMoonCmd.setExecutor(new org.maks.eventPlugin.newmoon.command.NewMoonCommand(newMoonManager, newMoonMap1SelectionGUI, newMoonAdminQuestRewardGUI));
+            Bukkit.getLogger().info("[EventPlugin] New Moon command registered");
+        }
+
+        // Register /seteventshowcase command
+        PluginCommand setShowcaseCmd = getCommand("seteventshowcase");
+        if (setShowcaseCmd != null) {
+            org.maks.eventPlugin.gui.EventRewardPreviewDAO rewardPreviewDAO = new org.maks.eventPlugin.gui.EventRewardPreviewDAO(this, databaseManager);
+            setShowcaseCmd.setExecutor(new org.maks.eventPlugin.command.SetEventShowcaseCommand(this, rewardPreviewDAO));
+            Bukkit.getLogger().info("[EventPlugin] SetEventShowcase command registered");
+        }
     }
 
     /**
@@ -173,7 +298,6 @@ public final class EventPlugin extends JavaPlugin {
             mapSelectionGUI = new MapSelectionGUI(this, fullMoonManager);
             questGUI = new QuestGUI(fullMoonManager);
             map2TransitionGUI = new Map2TransitionGUI(fullMoonManager);
-            eventsMainGUI = new EventsMainGUI(this, eventManagers, progressGUI, fullMoonManager, mapSelectionGUI, questGUI);
             adminQuestRewardGUI = new org.maks.eventPlugin.fullmoon.gui.AdminQuestRewardEditorGUI(this, fullMoonManager.getQuestManager());
 
             // Cleanup any leftover Map2 instances from previous server run/crash
@@ -183,6 +307,89 @@ public final class EventPlugin extends JavaPlugin {
             Bukkit.getLogger().info("[EventPlugin] Full Moon event initialized");
         } else {
             Bukkit.getLogger().info("[EventPlugin] Full Moon event not found in configuration");
+        }
+    }
+
+    /**
+     * Initialize New Moon event components if the event is configured.
+     */
+    private void initializeNewMoon() {
+        EventManager newMoonEvent = eventManagers.get("new_moon");
+        if (newMoonEvent != null) {
+            newMoonManager = new org.maks.eventPlugin.newmoon.NewMoonManager(this, databaseManager, configManager, newMoonEvent);
+            newMoonQuestGUI = new org.maks.eventPlugin.newmoon.gui.NewMoonQuestGUI(newMoonManager);
+            newMoonMap1SelectionGUI = new org.maks.eventPlugin.newmoon.gui.Map1SelectionGUI(newMoonManager);
+
+            // Create PortalListener first (with null GUI temporarily)
+            var portalListener = new org.maks.eventPlugin.newmoon.listener.PortalListener(newMoonManager, null);
+
+            // Create PortalConfirmationGUI with PortalListener reference
+            newMoonPortalGUI = new org.maks.eventPlugin.newmoon.gui.PortalConfirmationGUI(newMoonManager, portalListener);
+
+            // Update PortalListener with the GUI reference
+            portalListener.setPortalGUI(newMoonPortalGUI);
+
+            newMoonAdminQuestRewardGUI = new org.maks.eventPlugin.newmoon.gui.AdminQuestRewardEditorGUI(this, newMoonManager.getQuestManager());
+
+            Bukkit.getLogger().info("[EventPlugin] New Moon event initialized");
+        } else {
+            Bukkit.getLogger().info("[EventPlugin] New Moon event not found in configuration");
+        }
+    }
+
+    /**
+     * Initialize Winter Event components if the event is configured.
+     */
+    private void initializeWinterEvent() {
+        EventManager winterEvent = eventManagers.get("winter_event");
+        if (winterEvent != null) {
+            winterEventManager = new org.maks.eventPlugin.winterevent.WinterEventManager(this, databaseManager, configManager, winterEvent);
+
+            // Create GUIs
+            winterDifficultyGUI = new org.maks.eventPlugin.winterevent.summit.gui.DifficultySelectionGUI(winterEventManager, configManager);
+            winterCaveGUI = new org.maks.eventPlugin.winterevent.wintercave.gui.WinterCaveGUI(winterEventManager.getWinterCaveManager());
+            winterCaveRewardsGUI = new org.maks.eventPlugin.winterevent.wintercave.gui.WinterCaveRewardsGUI(winterEventManager.getWinterCaveManager());
+            winterQuestGUI = new org.maks.eventPlugin.winterevent.gui.WinterQuestGUI(winterEventManager.getQuestManager());
+            winterAdminQuestRewardGUI = new org.maks.eventPlugin.winterevent.gui.AdminWinterQuestRewardEditorGUI(winterEventManager.getQuestManager(), this);
+
+            // Register listeners
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.listener.GiftDropListener(winterEventManager), this);
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.listener.WinterEventMobListener(winterEventManager, buffManager), this);
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.wintercave.listener.WinterCaveMobListener(winterEventManager.getWinterCaveManager()), this);
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.wintercave.listener.WinterCavePlayerListener(winterEventManager.getWinterCaveManager()), this);
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.summit.listener.SummitInteractionListener(winterEventManager.getWinterSummitManager(), winterEventManager, configManager), this);
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.summit.listener.SummitBossListener(winterEventManager.getWinterSummitManager(), winterEventManager, configManager, this), this);
+
+            // Register GUIs as listeners
+            getServer().getPluginManager().registerEvents(winterDifficultyGUI, this);
+            getServer().getPluginManager().registerEvents(winterCaveGUI, this);
+            getServer().getPluginManager().registerEvents(winterCaveRewardsGUI, this);
+            getServer().getPluginManager().registerEvents(winterQuestGUI, this);
+            getServer().getPluginManager().registerEvents(winterAdminQuestRewardGUI, this);
+
+            // Register commands
+            org.maks.eventPlugin.winterevent.wintercave.command.WinterCaveCommand winterCaveCommand =
+                new org.maks.eventPlugin.winterevent.wintercave.command.WinterCaveCommand(winterCaveGUI, winterCaveRewardsGUI);
+            getCommand("winter_cave").setExecutor(winterCaveCommand);
+            getCommand("winter_cave_rewards").setExecutor(winterCaveCommand);
+
+            org.maks.eventPlugin.winterevent.command.WinterQuestCommand winterQuestCommand =
+                new org.maks.eventPlugin.winterevent.command.WinterQuestCommand(winterQuestGUI, winterAdminQuestRewardGUI);
+            getCommand("winter_quests").setExecutor(winterQuestCommand);
+
+            // Cleanup leftover instances
+            winterEventManager.getWinterCaveManager().cleanupLeftoverInstance();
+            winterEventManager.getWinterSummitManager().cleanupLeftoverInstances();
+
+            Bukkit.getLogger().info("[EventPlugin] Winter Event initialized");
+        } else {
+            Bukkit.getLogger().info("[EventPlugin] Winter Event not found in configuration");
         }
     }
 

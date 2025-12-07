@@ -228,9 +228,15 @@ public class Map2TransitionGUI implements Listener {
                                 player.teleport(spawnLoc);
                                 // --- KONIEC POPRAWKI ---
 
-                                // Initialize boss sequence (difficulty is stored in instance)
-                                fullMoonManager.getMap2BossSequenceManager()
-                                        .initializeBossSequence(instance, player);
+                                // Initialize boss sequence with 5 second delay (prevent instant death)
+                                Bukkit.getScheduler().runTaskLater(
+                                        Bukkit.getPluginManager().getPlugin("EventPlugin"),
+                                        () -> {
+                                            fullMoonManager.getMap2BossSequenceManager()
+                                                    .initializeBossSequence(instance, player);
+                                        },
+                                        5 * 20L  // 5 seconds delay
+                                );
 
                                 // Silent - no title screen
                             }

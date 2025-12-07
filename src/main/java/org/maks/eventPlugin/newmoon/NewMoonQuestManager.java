@@ -1,6 +1,5 @@
-package org.maks.eventPlugin.fullmoon;
+package org.maks.eventPlugin.newmoon;
 
-import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.maks.eventPlugin.config.ConfigManager;
 import org.maks.eventPlugin.db.DatabaseManager;
@@ -10,18 +9,34 @@ import java.sql.SQLException;
 import java.util.*;
 
 /**
- * Manages quests for the Full Moon event.
- * Handles quest progress tracking, unlocking, acceptance, and completion.
+ * Manages quests for the New Moon event.
+ *
+ * New Moon has 10 quests in TWO chains:
+ * - White Lord Chain (IDs 1-5): Quest 3 unlocks White Realm portal
+ * - Black Lord Chain (IDs 6-10): Quest 8 unlocks Black Realm portal
+ *
+ * QUEST UNLOCK SYSTEM:
+ * - Quests unlock SEQUENTIALLY WITHIN EACH CHAIN (white 1→2→3→4→5, black 1→2→3→4→5)
+ * - Both chains can progress IN PARALLEL (can do white 1 and black 1 at same time)
+ * - Player must complete AND claim previous quest in chain to unlock next quest
+ * - First quest of each chain (quest 1 and quest 6) is always unlocked
+ *
+ * Quest structure (each chain):
+ * 1. Kill specific mobs
+ * 2. Gather "non-physical" progress from mobs
+ * 3. Defeat Patriarch of the Lords 1x (UNLOCKS PORTAL to respective realm)
+ * 4. Defeat respective Lord 3x
+ * 5. Defeat respective Lord 5x (Hard mode)
  */
-public class QuestManager {
+public class NewMoonQuestManager {
     private final DatabaseManager database;
     private final ConfigManager config;
-    private final String eventId = "full_moon";
+    private final String eventId = "new_moon";
 
-    // All quests in the Full Moon event
-    private final List<Quest> quests = new ArrayList<>();
+    // All quests in the New Moon event (10 total: 5 white chain + 5 black chain)
+    private final List<NewMoonQuest> quests = new ArrayList<>();
 
-    // Player quest progress: UUID -> Quest ID -> Kill count
+    // Player quest progress: UUID -> Quest ID -> Progress count
     private final Map<UUID, Map<Integer, Integer>> playerProgress = new HashMap<>();
 
     // Player completed quests: UUID -> Set of completed quest IDs
@@ -33,7 +48,7 @@ public class QuestManager {
     // Player claimed rewards: UUID -> Set of claimed quest IDs
     private final Map<UUID, Set<Integer>> claimedRewards = new HashMap<>();
 
-    public QuestManager(DatabaseManager database, ConfigManager config) {
+    public NewMoonQuestManager(DatabaseManager database, ConfigManager config) {
         this.database = database;
         this.config = config;
         initializeQuests();
@@ -41,12 +56,10 @@ public class QuestManager {
     }
 
     /**
-     * Initialize all quests for the Full Moon event from config.
-     * Quests unlock sequentially based on orderIndex.
-     * Rewards are loaded from database, not config.
+     * Initialize all quests for the New Moon event from config.
      */
     private void initializeQuests() {
-        var questsSection = config.getSection("full_moon.quests");
+        var questsSection = config.getSection("new_moon.quests");
         if (questsSection == null) {
             // Fallback to hardcoded quests if config not found
             initializeDefaultQuests();
@@ -58,44 +71,73 @@ public class QuestManager {
             var questSection = questsSection.getConfigurationSection(questIdStr);
             if (questSection == null) continue;
 
+            String chainType = questSection.getString("chain_type", "white");
             String description = questSection.getString("description", "Unknown Quest");
-            String targetMob = questSection.getString("target_mob", "werewolf");
+            String targetMob = questSection.getString("target_mob", "lunatic_goblin");
             int requiredKills = questSection.getInt("required_kills", 1);
             int orderIndex = questSection.getInt("order_index", 0);
+            boolean isHardMode = questSection.getBoolean("hard_mode", false);
 
             // Load rewards from database
             List<ItemStack> rewards = loadRewardsFromDatabase(questId);
 
-            quests.add(new Quest(questId, description, targetMob, requiredKills, orderIndex, rewards));
+            quests.add(new NewMoonQuest(questId, chainType, description, targetMob,
+                requiredKills, orderIndex, rewards, isHardMode));
         }
 
         // Sort by ID to ensure proper order
-        quests.sort(Comparator.comparingInt(Quest::id));
+        quests.sort(Comparator.comparingInt(NewMoonQuest::id));
     }
 
     /**
      * Fallback to default hardcoded quests if config is not available.
      */
     private void initializeDefaultQuests() {
-        quests.add(new Quest(1, "Kill 100 Werewolves", "werewolf", 100, 0, new ArrayList<>()));
-        quests.add(new Quest(2, "Defeat Amarok, First Werewolf", "amarok", 1, 1, new ArrayList<>()));
-        quests.add(new Quest(3, "Kill 500 Werewolves", "werewolf", 500, 2, new ArrayList<>()));
-        quests.add(new Quest(4, "Defeat Amarok 5 times", "amarok", 5, 3, new ArrayList<>()));
-        quests.add(new Quest(5, "Defeat Sanguis the Blood Mage", "sanguis", 1, 4, new ArrayList<>()));
-        quests.add(new Quest(6, "Defeat Sanguis 5 times (Hard)", "sanguis_hard", 5, 5, new ArrayList<>()));
+        // White Lord Chain (1-5)
+        quests.add(new NewMoonQuest(1, "white", "Kill 100 Lunatic Goblins",
+            "lunatic_goblin", 100, 0, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(2, "white", "Gather Fairy Wood from Walking Woods",
+            "walking_wood", 100, 1, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(3, "white", "Defeat Patriarch of the Lords",
+            "patriarch_of_the_lords", 1, 2, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(4, "white", "Defeat Lord Silvanus, White King 3 times",
+            "lord_silvanus", 3, 3, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(5, "white", "Defeat Lord Silvanus 5 times (Hard)",
+            "lord_silvanus", 5, 4, new ArrayList<>(), true));
+
+        // Black Lord Chain (6-10)
+        quests.add(new NewMoonQuest(6, "black", "Kill 100 Nighty Witches",
+            "nighty_witch", 100, 0, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(7, "black", "Gather Fairy Wood from Walking Woods",
+            "walking_wood", 100, 1, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(8, "black", "Defeat Patriarch of the Lords",
+            "patriarch_of_the_lords", 1, 2, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(9, "black", "Defeat Lord Malachai, Black King 3 times",
+            "lord_malachai", 3, 3, new ArrayList<>(), false));
+        quests.add(new NewMoonQuest(10, "black", "Defeat Lord Malachai 5 times (Hard)",
+            "lord_malachai", 5, 4, new ArrayList<>(), true));
     }
 
     /**
      * Get all quests.
      */
-    public List<Quest> getAllQuests() {
+    public List<NewMoonQuest> getAllQuests() {
         return new ArrayList<>(quests);
+    }
+
+    /**
+     * Get quests for a specific chain.
+     */
+    public List<NewMoonQuest> getQuestsForChain(String chainType) {
+        return quests.stream()
+                .filter(q -> q.chainType().equals(chainType))
+                .toList();
     }
 
     /**
      * Get a quest by ID.
      */
-    public Quest getQuest(int questId) {
+    public NewMoonQuest getQuest(int questId) {
         return quests.stream()
                 .filter(q -> q.id() == questId)
                 .findFirst()
@@ -104,18 +146,45 @@ public class QuestManager {
 
     /**
      * Check if a quest is unlocked for a player.
-     * Quests unlock sequentially - previous quest must be completed AND claimed.
+     * Quests unlock sequentially within each chain:
+     * - First quest of each chain (orderIndex 0) is always unlocked
+     * - Other quests require previous quest in same chain to be completed AND claimed
      */
     public boolean isQuestUnlocked(UUID playerId, int questId) {
-        Quest quest = getQuest(questId);
+        NewMoonQuest quest = getQuest(questId);
         if (quest == null) return false;
 
-        // First quest is always unlocked
-        if (quest.orderIndex() == 0) return true;
+        // First quest in each chain is always unlocked
+        if (quest.orderIndex() == 0) {
+            return true;
+        }
 
-        // Check if previous quest is completed AND rewards were claimed
-        int previousQuestId = questId - 1;
+        // For other quests, check if previous quest in same chain is completed AND claimed
+        int previousQuestId = getPreviousQuestInChain(questId);
+        if (previousQuestId == -1) {
+            return true; // No previous quest found, unlock by default
+        }
+
+        // Previous quest must be both completed AND claimed
         return isQuestCompleted(playerId, previousQuestId) && hasClaimedReward(playerId, previousQuestId);
+    }
+
+    /**
+     * Get the previous quest ID in the same chain.
+     * Returns -1 if no previous quest exists (first quest in chain).
+     */
+    private int getPreviousQuestInChain(int questId) {
+        NewMoonQuest currentQuest = getQuest(questId);
+        if (currentQuest == null || currentQuest.orderIndex() == 0) return -1;
+
+        // Find quest with same chain type and orderIndex - 1
+        for (NewMoonQuest q : quests) {
+            if (q.chainType().equals(currentQuest.chainType()) &&
+                q.orderIndex() == currentQuest.orderIndex() - 1) {
+                return q.id();
+            }
+        }
+        return -1;
     }
 
     /**
@@ -205,7 +274,7 @@ public class QuestManager {
      * IMPORTANT: Quest must be accepted first to gain progress!
      *
      * @param playerId Player UUID
-     * @param mobType Base mob type (without _normal/_hard suffix)
+     * @param mobType Base mob type (e.g., "lunatic_goblin", "lord_silvanus")
      * @param amount Amount to add
      * @param isHard Whether this was a hard mode kill
      */
@@ -213,17 +282,16 @@ public class QuestManager {
         boolean anyCompleted = false;
 
         // Find all quests matching this mob type that are accepted and not completed
-        for (Quest quest : quests) {
-            // For quests that require hard mode (target ends with _hard), check if this was hard mode
+        for (NewMoonQuest quest : quests) {
             String questTarget = quest.targetMobType();
             boolean matchesQuest = false;
 
-            if (questTarget.endsWith("_hard")) {
-                // Quest requires hard mode - check base type matches AND it was hard mode
-                String baseQuestType = questTarget.substring(0, questTarget.length() - 5);
-                matchesQuest = baseQuestType.equalsIgnoreCase(mobType) && isHard;
+            // Check if mob type matches and difficulty matches
+            if (quest.isHardMode()) {
+                // Quest requires hard mode - check mob type matches AND it was hard mode
+                matchesQuest = questTarget.equalsIgnoreCase(mobType) && isHard;
             } else {
-                // Normal quest - just check mob type matches
+                // Normal quest - just check mob type matches (accepts both normal and hard kills)
                 matchesQuest = questTarget.equalsIgnoreCase(mobType);
             }
 
@@ -260,11 +328,17 @@ public class QuestManager {
     }
 
     /**
-     * Check if player has completed quest 4 AND claimed the reward (unlocks Map 2).
-     * Players must claim the reward before they can access Map 2.
+     * Check if player has unlocked White Realm portal (quest 3 completed and claimed).
      */
-    public boolean hasUnlockedMap2(UUID playerId) {
-        return isQuestCompleted(playerId, 4) && hasClaimedReward(playerId, 4);
+    public boolean hasUnlockedWhitePortal(UUID playerId) {
+        return isQuestCompleted(playerId, 3) && hasClaimedReward(playerId, 3);
+    }
+
+    /**
+     * Check if player has unlocked Black Realm portal (quest 8 completed and claimed).
+     */
+    public boolean hasUnlockedBlackPortal(UUID playerId) {
+        return isQuestCompleted(playerId, 8) && hasClaimedReward(playerId, 8);
     }
 
     /**
@@ -277,10 +351,10 @@ public class QuestManager {
         claimedRewards.remove(playerId);
 
         try (var conn = database.getConnection();
-             var ps1 = conn.prepareStatement("DELETE FROM full_moon_quest_progress WHERE event_id=? AND player_uuid=?");
-             var ps2 = conn.prepareStatement("DELETE FROM full_moon_quest_completed WHERE event_id=? AND player_uuid=?");
-             var ps3 = conn.prepareStatement("DELETE FROM full_moon_quest_accepted WHERE event_id=? AND player_uuid=?");
-             var ps4 = conn.prepareStatement("DELETE FROM full_moon_quest_claimed WHERE event_id=? AND player_uuid=?")) {
+             var ps1 = conn.prepareStatement("DELETE FROM new_moon_quest_progress WHERE event_id=? AND player_uuid=?");
+             var ps2 = conn.prepareStatement("DELETE FROM new_moon_quest_completed WHERE event_id=? AND player_uuid=?");
+             var ps3 = conn.prepareStatement("DELETE FROM new_moon_quest_accepted WHERE event_id=? AND player_uuid=?");
+             var ps4 = conn.prepareStatement("DELETE FROM new_moon_quest_claimed WHERE event_id=? AND player_uuid=?")) {
 
             ps1.setString(1, eventId);
             ps1.setString(2, playerId.toString());
@@ -303,19 +377,26 @@ public class QuestManager {
     }
 
     /**
-     * Reset all quest progress for all players (for event rerun).
+     * Reset player quests (alias for resetPlayerProgress for consistency with NewMoonManager).
      */
-    public void resetAllProgress() {
+    public void resetPlayerQuests(UUID playerId) {
+        resetPlayerProgress(playerId);
+    }
+
+    /**
+     * Reset ALL quests for ALL players (admin command).
+     */
+    public void resetAllQuests() {
         playerProgress.clear();
         completedQuests.clear();
         acceptedQuests.clear();
         claimedRewards.clear();
 
         try (var conn = database.getConnection();
-             var ps1 = conn.prepareStatement("DELETE FROM full_moon_quest_progress WHERE event_id=?");
-             var ps2 = conn.prepareStatement("DELETE FROM full_moon_quest_completed WHERE event_id=?");
-             var ps3 = conn.prepareStatement("DELETE FROM full_moon_quest_accepted WHERE event_id=?");
-             var ps4 = conn.prepareStatement("DELETE FROM full_moon_quest_claimed WHERE event_id=?")) {
+             var ps1 = conn.prepareStatement("DELETE FROM new_moon_quest_progress WHERE event_id=?");
+             var ps2 = conn.prepareStatement("DELETE FROM new_moon_quest_completed WHERE event_id=?");
+             var ps3 = conn.prepareStatement("DELETE FROM new_moon_quest_accepted WHERE event_id=?");
+             var ps4 = conn.prepareStatement("DELETE FROM new_moon_quest_claimed WHERE event_id=?")) {
 
             ps1.setString(1, eventId);
             ps1.executeUpdate();
@@ -341,7 +422,7 @@ public class QuestManager {
     private List<ItemStack> loadRewardsFromDatabase(int questId) {
         List<ItemStack> rewards = new ArrayList<>();
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("SELECT item FROM full_moon_quest_rewards WHERE event_id=? AND quest_id=?")) {
+             var ps = conn.prepareStatement("SELECT item FROM new_moon_quest_rewards WHERE event_id=? AND quest_id=?")) {
             ps.setString(1, eventId);
             ps.setInt(2, questId);
 
@@ -372,7 +453,7 @@ public class QuestManager {
      */
     public void addQuestReward(int questId, ItemStack item) {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("INSERT INTO full_moon_quest_rewards(event_id, quest_id, item) VALUES (?,?,?)")) {
+             var ps = conn.prepareStatement("INSERT INTO new_moon_quest_rewards(event_id, quest_id, item) VALUES (?,?,?)")) {
             ps.setString(1, eventId);
             ps.setInt(2, questId);
             ps.setString(3, serializeItem(item));
@@ -390,7 +471,7 @@ public class QuestManager {
      */
     public void clearQuestRewards(int questId) {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("DELETE FROM full_moon_quest_rewards WHERE event_id=? AND quest_id=?")) {
+             var ps = conn.prepareStatement("DELETE FROM new_moon_quest_rewards WHERE event_id=? AND quest_id=?")) {
             ps.setString(1, eventId);
             ps.setInt(2, questId);
             ps.executeUpdate();
@@ -406,19 +487,21 @@ public class QuestManager {
      * Refresh rewards for a specific quest from database.
      */
     private void refreshQuestRewards(int questId) {
-        Quest quest = getQuest(questId);
+        NewMoonQuest quest = getQuest(questId);
         if (quest == null) return;
 
         List<ItemStack> newRewards = loadRewardsFromDatabase(questId);
 
         // Create new quest with updated rewards
-        Quest updatedQuest = new Quest(
+        NewMoonQuest updatedQuest = new NewMoonQuest(
                 quest.id(),
+                quest.chainType(),
                 quest.description(),
                 quest.targetMobType(),
                 quest.requiredKills(),
                 quest.orderIndex(),
-                newRewards
+                newRewards,
+                quest.isHardMode()
         );
 
         // Replace in list
@@ -468,7 +551,7 @@ public class QuestManager {
     private void loadAllProgress() {
         // Load quest progress
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("SELECT player_uuid, quest_id, progress FROM full_moon_quest_progress WHERE event_id=?")) {
+             var ps = conn.prepareStatement("SELECT player_uuid, quest_id, progress FROM new_moon_quest_progress WHERE event_id=?")) {
             ps.setString(1, eventId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -486,7 +569,7 @@ public class QuestManager {
 
         // Load completed quests
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("SELECT player_uuid, quest_id FROM full_moon_quest_completed WHERE event_id=?")) {
+             var ps = conn.prepareStatement("SELECT player_uuid, quest_id FROM new_moon_quest_completed WHERE event_id=?")) {
             ps.setString(1, eventId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -503,7 +586,7 @@ public class QuestManager {
 
         // Load accepted quests
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("SELECT player_uuid, quest_id FROM full_moon_quest_accepted WHERE event_id=?")) {
+             var ps = conn.prepareStatement("SELECT player_uuid, quest_id FROM new_moon_quest_accepted WHERE event_id=?")) {
             ps.setString(1, eventId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -520,7 +603,7 @@ public class QuestManager {
 
         // Load claimed rewards
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("SELECT player_uuid, quest_id FROM full_moon_quest_claimed WHERE event_id=?")) {
+             var ps = conn.prepareStatement("SELECT player_uuid, quest_id FROM new_moon_quest_claimed WHERE event_id=?")) {
             ps.setString(1, eventId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -538,7 +621,7 @@ public class QuestManager {
 
     private void saveProgress(UUID playerId, int questId, int progress) {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("REPLACE INTO full_moon_quest_progress(event_id, player_uuid, quest_id, progress) VALUES (?,?,?,?)")) {
+             var ps = conn.prepareStatement("REPLACE INTO new_moon_quest_progress(event_id, player_uuid, quest_id, progress) VALUES (?,?,?,?)")) {
             ps.setString(1, eventId);
             ps.setString(2, playerId.toString());
             ps.setInt(3, questId);
@@ -551,7 +634,7 @@ public class QuestManager {
 
     private void saveCompletion(UUID playerId, int questId) {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("REPLACE INTO full_moon_quest_completed(event_id, player_uuid, quest_id) VALUES (?,?,?)")) {
+             var ps = conn.prepareStatement("REPLACE INTO new_moon_quest_completed(event_id, player_uuid, quest_id) VALUES (?,?,?)")) {
             ps.setString(1, eventId);
             ps.setString(2, playerId.toString());
             ps.setInt(3, questId);
@@ -563,7 +646,7 @@ public class QuestManager {
 
     private void saveAcceptance(UUID playerId, int questId) {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("REPLACE INTO full_moon_quest_accepted(event_id, player_uuid, quest_id) VALUES (?,?,?)")) {
+             var ps = conn.prepareStatement("REPLACE INTO new_moon_quest_accepted(event_id, player_uuid, quest_id) VALUES (?,?,?)")) {
             ps.setString(1, eventId);
             ps.setString(2, playerId.toString());
             ps.setInt(3, questId);
@@ -575,7 +658,7 @@ public class QuestManager {
 
     private void saveClaim(UUID playerId, int questId) {
         try (var conn = database.getConnection();
-             var ps = conn.prepareStatement("REPLACE INTO full_moon_quest_claimed(event_id, player_uuid, quest_id) VALUES (?,?,?)")) {
+             var ps = conn.prepareStatement("REPLACE INTO new_moon_quest_claimed(event_id, player_uuid, quest_id) VALUES (?,?,?)")) {
             ps.setString(1, eventId);
             ps.setString(2, playerId.toString());
             ps.setInt(3, questId);

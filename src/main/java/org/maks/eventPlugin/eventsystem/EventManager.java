@@ -147,16 +147,68 @@ public class EventManager {
         if (progress < required) return false;
         var set = claimedMap.computeIfAbsent(player.getUniqueId(), k -> new java.util.HashSet<>());
         if (set.contains(required)) return false;
+
+        // Count how many items will be given
+        java.util.List<ItemStack> itemsToGive = new java.util.ArrayList<>();
+        for (var reward : rewards) {
+            if (reward.requiredProgress() == required) {
+                itemsToGive.add(reward.item().clone());
+            }
+        }
+
+        // Check if player has enough inventory space
+        int requiredSlots = 0;
+        for (ItemStack item : itemsToGive) {
+            requiredSlots += getRequiredSlots(player, item);
+        }
+
+        int emptySlots = 0;
+        for (ItemStack invItem : player.getInventory().getStorageContents()) {
+            if (invItem == null || invItem.getType() == org.bukkit.Material.AIR) {
+                emptySlots++;
+            }
+        }
+
+        if (emptySlots < requiredSlots) {
+            player.sendMessage("§c§l[Event] §cYou need at least §e" + requiredSlots + " §cempty slots in your inventory!");
+            player.sendMessage("§c§lFree up space and try again.");
+            return false;
+        }
+
+        // Mark as claimed
         set.add(required);
         saveClaimed(player.getUniqueId(), required);
 
         // Give player all rewards for this required progress
-        for (var reward : rewards) {
-            if (reward.requiredProgress() == required) {
-                player.getInventory().addItem(reward.item().clone());
-            }
+        for (ItemStack item : itemsToGive) {
+            player.getInventory().addItem(item);
         }
         return true;
+    }
+
+    /**
+     * Calculate how many inventory slots are required for an item.
+     * Takes into account existing stacks of the same item.
+     */
+    private int getRequiredSlots(Player player, ItemStack item) {
+        int amountToAdd = item.getAmount();
+        int maxStackSize = item.getMaxStackSize();
+
+        // Check existing stacks in inventory
+        for (ItemStack invItem : player.getInventory().getStorageContents()) {
+            if (invItem != null && invItem.isSimilar(item)) {
+                int spaceInStack = maxStackSize - invItem.getAmount();
+                if (spaceInStack > 0) {
+                    amountToAdd -= spaceInStack;
+                    if (amountToAdd <= 0) {
+                        return 0; // Can fit in existing stacks
+                    }
+                }
+            }
+        }
+
+        // Calculate how many new slots are needed
+        return (int) Math.ceil((double) amountToAdd / maxStackSize);
     }
 
     private void loadProgress() {
@@ -342,6 +394,15 @@ public class EventManager {
 
     public long getTimeRemaining() {
         return Math.max(0, endTime - Instant.now().toEpochMilli());
+    }
+
+    /**
+     * Get current day number (based on epoch day).
+     * Returns the number of days since Unix epoch (1970-01-01).
+     * This ensures each real-world day has a unique number.
+     */
+    public int getCurrentDay() {
+        return (int) java.time.LocalDate.now().toEpochDay();
     }
 
 }

@@ -9,6 +9,7 @@ import org.maks.eventPlugin.eventsystem.EventManager;
 import org.maks.eventPlugin.fullmoon.FullMoonManager;
 import org.maks.eventPlugin.gui.AdminRewardEditorGUI;
 import org.maks.eventPlugin.gui.PlayerProgressGUI;
+import org.maks.eventPlugin.newmoon.NewMoonManager;
 
 import java.util.Map;
 
@@ -19,6 +20,7 @@ public class EventCommand implements CommandExecutor {
     private final AdminRewardEditorGUI rewardGUI;
     private final org.maks.eventPlugin.config.ConfigManager config;
     private FullMoonManager fullMoonManager;
+    private NewMoonManager newMoonManager;
 
     public EventCommand(Map<String, EventManager> events, DatabaseManager database,
                         PlayerProgressGUI progressGUI, AdminRewardEditorGUI rewardGUI,
@@ -35,6 +37,13 @@ public class EventCommand implements CommandExecutor {
      */
     public void setFullMoonManager(FullMoonManager fullMoonManager) {
         this.fullMoonManager = fullMoonManager;
+    }
+
+    /**
+     * Set the NewMoonManager instance (called after initialization).
+     */
+    public void setNewMoonManager(NewMoonManager newMoonManager) {
+        this.newMoonManager = newMoonManager;
     }
 
     @Override
@@ -77,9 +86,12 @@ public class EventCommand implements CommandExecutor {
                 String id = args[1];
                 EventManager m = events.get(id);
                 if (m != null) {
-                    // Special handling for Full Moon event - reset quests
+                    // Special handling for Full Moon and New Moon events - reset quests
                     if (id.equalsIgnoreCase("full_moon") && fullMoonManager != null) {
                         fullMoonManager.stopEvent();
+                        sender.sendMessage("Stopped event " + id + " (quest progress reset)");
+                    } else if (id.equalsIgnoreCase("new_moon") && newMoonManager != null) {
+                        newMoonManager.stopEvent();
                         sender.sendMessage("Stopped event " + id + " (quest progress reset)");
                     } else {
                         m.stop();

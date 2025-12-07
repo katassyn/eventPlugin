@@ -66,7 +66,7 @@ public class Map2BossSequenceManager {
 
     /**
      * Spawn normal mobs using marker locations from instance.
-     * Only spawns 1/3 (33%) of available markers to avoid overwhelming players.
+     * Only spawns 2/10 (20%) of available markers to avoid overwhelming players.
      *
      * @param instance The Map2 instance
      * @param player The player
@@ -81,20 +81,20 @@ public class Map2BossSequenceManager {
             return;
         }
 
-        // Calculate how many mobs to spawn (1/3 = 33% of markers)
+        // Calculate how many mobs to spawn (2/10 = 20% of markers)
         int totalMarkers = mobLocations.size();
-        int mobsToSpawn = Math.max(1, totalMarkers / 3); // At least 1 mob
+        int mobsToSpawn = Math.max(1, (totalMarkers * 2) / 10); // At least 1 mob
 
         int spawnedBloodyWerewolf = 0;
         int spawnedBloodSludgeling = 0;
 
-        // Spawn mobs at evenly distributed marker locations (every 3rd marker)
-        for (int i = 0; i < totalMarkers && (i / 3) < mobsToSpawn; i += 3) {
+        // Spawn mobs at evenly distributed marker locations (every 5th marker)
+        for (int i = 0; i < totalMarkers && (i / 5) < mobsToSpawn; i += 5) {
             Location spawnLoc = mobLocations.get(i).clone();
 
             // Alternate between Bloody Werewolf and Blood Sludgeling
             String mobType;
-            if ((i / 3) % 2 == 0) {
+            if ((i / 5) % 2 == 0) {
                 mobType = isHard ? "bloody_werewolf_hard" : "bloody_werewolf_normal";
                 spawnedBloodyWerewolf++;
             } else {
@@ -108,7 +108,7 @@ public class Map2BossSequenceManager {
         }
 
         config.debug("[Full Moon] Spawned " + spawnedBloodyWerewolf + " Bloody Werewolves and "
-                + spawnedBloodSludgeling + " Blood Sludgelings (1/3 of " + totalMarkers + " markers) in instance " + instance.getInstanceId());
+                + spawnedBloodSludgeling + " Blood Sludgelings (2/10 of " + totalMarkers + " markers) in instance " + instance.getInstanceId());
     }
 
     /**

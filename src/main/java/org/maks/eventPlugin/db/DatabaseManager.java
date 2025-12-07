@@ -164,6 +164,99 @@ public class DatabaseManager {
                     "item TEXT NOT NULL," +
                     "INDEX(event_id, quest_id))");
 
+            // New Moon quest tables
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS new_moon_quest_progress(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "progress INT NOT NULL," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS new_moon_quest_completed(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS new_moon_quest_accepted(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS new_moon_quest_claimed(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+
+            // New Moon quest rewards
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS new_moon_quest_rewards(" +
+                    "reward_id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "event_id VARCHAR(100)," +
+                    "quest_id INT," +
+                    "item TEXT NOT NULL," +
+                    "INDEX(event_id, quest_id))");
+
+            // Event showcase rewards for rewards preview GUI
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS event_showcase_rewards(" +
+                    "event_id VARCHAR(100) PRIMARY KEY," +
+                    "gui_title VARCHAR(255)," +
+                    "serialized_inventory TEXT NOT NULL)");
+
+            // Winter Event tables
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_cave_daily_rewards(" +
+                    "event_id VARCHAR(64) NOT NULL," +
+                    "day INT NOT NULL," +
+                    "item TEXT NOT NULL," +
+                    "PRIMARY KEY(event_id, day))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_cave_claims(" +
+                    "event_id VARCHAR(64) NOT NULL," +
+                    "player_uuid VARCHAR(36) NOT NULL," +
+                    "event_day INT NOT NULL," +
+                    "claimed_at BIGINT NOT NULL," +
+                    "PRIMARY KEY(event_id, player_uuid, event_day))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_cave_active_instance(" +
+                    "event_id VARCHAR(64) PRIMARY KEY," +
+                    "player_uuid VARCHAR(36) NOT NULL," +
+                    "entry_time BIGINT NOT NULL)");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_summit_instances(" +
+                    "instance_id VARCHAR(36) PRIMARY KEY," +
+                    "event_id VARCHAR(64) NOT NULL," +
+                    "player_uuid VARCHAR(36) NOT NULL," +
+                    "boss_type VARCHAR(32) NOT NULL," +
+                    "difficulty VARCHAR(32) NOT NULL," +
+                    "created_at BIGINT NOT NULL," +
+                    "INDEX(player_uuid))");
+
+            // Winter Event Quest System tables
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_event_quest_progress(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "progress INT NOT NULL," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_event_quest_completed(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_event_quest_accepted(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_event_quest_claimed(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "quest_id INT," +
+                    "PRIMARY KEY(event_id, player_uuid, quest_id))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS winter_event_quest_rewards(" +
+                    "reward_id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "event_id VARCHAR(100)," +
+                    "quest_id INT," +
+                    "item TEXT NOT NULL," +
+                    "INDEX(event_id, quest_id))");
+
+            Bukkit.getLogger().info("[EventPlugin] Database tables setup complete");
+
         } catch (SQLException ex) {
             Bukkit.getLogger().severe("[EventPlugin] Could not setup database tables: " + ex.getMessage());
         }

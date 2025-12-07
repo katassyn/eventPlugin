@@ -25,6 +25,30 @@ commands:
     description: Opens the Full Moon quest GUI
     usage: /fullmoon_quests
     permission: eventplugin.fullmoon_quests
+  new_moon_quest:
+    description: Opens the New Moon quest GUI
+    usage: /new_moon_quest
+    permission: eventplugin.new_moon_quest
+  new_moon:
+    description: New Moon event command
+    usage: /new_moon [gui|admin]
+    permission: eventplugin.newmoon
+  seteventshowcase:
+    description: Set up showcase rewards for an event
+    usage: /seteventshowcase <event_id>
+    permission: eventplugin.admin
+  winter_cave:
+    description: Enter the Winter Cave for daily rewards
+    usage: /winter_cave
+    permission: eventplugin.winter_cave
+  winter_cave_rewards:
+    description: Manage Winter Cave daily rewards (admin)
+    usage: /winter_cave_rewards
+    permission: eventplugin.admin.winter_cave_rewards
+  winter_quests:
+    description: View and manage Winter Event quests
+    usage: /winter_quests [admin]
+    permission: eventplugin.winter_quests
 
 permissions:
   eventplugin.admin:
@@ -50,4 +74,31 @@ permissions:
     default: true
   eventplugin.fullmoon.admin:
     description: Admin access to Full Moon commands
+    default: op
+  eventplugin.new_moon_quest:
+    description: Access to New Moon quest GUI
+    default: true
+  eventplugin.newmoon:
+    description: Access to /new_moon command
+    default: false
+  eventplugin.newmoon.gui:
+    description: Access to New Moon map selection GUI
+    default: false
+  eventplugin.newmoon.admin:
+    description: Admin access to New Moon commands
+    default: op
+  eventplugin.winter_cave:
+    description: Access to Winter Cave
+    default: true
+  eventplugin.winterevent.gui:
+    description: Access to Winter Event difficulty selection GUI
+    default: false
+  eventplugin.admin.winter_cave_rewards:
+    description: Allows editing Winter Cave rewards
+    default: op
+  eventplugin.winter_quests:
+    description: Access to Winter Event quests
+    default: true
+  eventplugin.admin.winter_quest_rewards:
+    description: Allows editing Winter Event quest rewards
     default: op
