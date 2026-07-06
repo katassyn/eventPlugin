@@ -10,6 +10,8 @@ import org.maks.eventPlugin.fullmoon.FullMoonManager;
 import org.maks.eventPlugin.gui.AdminRewardEditorGUI;
 import org.maks.eventPlugin.gui.PlayerProgressGUI;
 import org.maks.eventPlugin.newmoon.NewMoonManager;
+import org.maks.eventPlugin.winterevent.bigpresent.BigPresentManager;
+import org.maks.eventPlugin.winterevent.WinterEventManager;
 
 import java.util.Map;
 
@@ -21,6 +23,8 @@ public class EventCommand implements CommandExecutor {
     private final org.maks.eventPlugin.config.ConfigManager config;
     private FullMoonManager fullMoonManager;
     private NewMoonManager newMoonManager;
+    private BigPresentManager bigPresentManager;
+    private WinterEventManager winterEventManager;
 
     public EventCommand(Map<String, EventManager> events, DatabaseManager database,
                         PlayerProgressGUI progressGUI, AdminRewardEditorGUI rewardGUI,
@@ -44,6 +48,20 @@ public class EventCommand implements CommandExecutor {
      */
     public void setNewMoonManager(NewMoonManager newMoonManager) {
         this.newMoonManager = newMoonManager;
+    }
+
+    /**
+     * Set the BigPresentManager for Winter Event integration.
+     */
+    public void setBigPresentManager(BigPresentManager bigPresentManager) {
+        this.bigPresentManager = bigPresentManager;
+    }
+
+    /**
+     * Set WinterEventManager for winter event resets.
+     */
+    public void setWinterEventManager(WinterEventManager winterEventManager) {
+        this.winterEventManager = winterEventManager;
     }
 
     @Override
@@ -75,6 +93,16 @@ public class EventCommand implements CommandExecutor {
 
                 manager.start(name, desc, max, duration);
                 config.set("events." + id + ".active", true);
+                if (id.equalsIgnoreCase("winter_event")) {
+                    if (winterEventManager != null) {
+                        winterEventManager.resetAllData();
+                        sender.sendMessage("Reset Winter Event quest data for new edition");
+                    }
+                    if (bigPresentManager != null) {
+                        bigPresentManager.resetOpenedForEvent();
+                        sender.sendMessage("Reset Big Present open states for " + id);
+                    }
+                }
                 sender.sendMessage("Started event " + id);
             }
             case "stop" -> {
@@ -92,6 +120,9 @@ public class EventCommand implements CommandExecutor {
                         sender.sendMessage("Stopped event " + id + " (quest progress reset)");
                     } else if (id.equalsIgnoreCase("new_moon") && newMoonManager != null) {
                         newMoonManager.stopEvent();
+                        sender.sendMessage("Stopped event " + id + " (quest progress reset)");
+                    } else if (id.equalsIgnoreCase("winter_event") && winterEventManager != null) {
+                        winterEventManager.stopEvent();
                         sender.sendMessage("Stopped event " + id + " (quest progress reset)");
                     } else {
                         m.stop();

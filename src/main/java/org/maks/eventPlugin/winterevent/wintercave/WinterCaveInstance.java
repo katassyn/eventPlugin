@@ -10,13 +10,17 @@ public class WinterCaveInstance {
     private final UUID playerId;
     private final long entryTime;
     private boolean mobKilled;
+    private boolean rewardClaimed;
     private int timerTaskId;
+    private int postClaimTaskId;
 
     public WinterCaveInstance(UUID playerId, long entryTime) {
         this.playerId = playerId;
         this.entryTime = entryTime;
         this.mobKilled = false;
+        this.rewardClaimed = false;
         this.timerTaskId = -1;
+        this.postClaimTaskId = -1;
     }
 
     public UUID getPlayerId() {
@@ -41,6 +45,22 @@ public class WinterCaveInstance {
 
     public void setTimerTaskId(int timerTaskId) {
         this.timerTaskId = timerTaskId;
+    }
+
+    public int getPostClaimTaskId() {
+        return postClaimTaskId;
+    }
+
+    public void setPostClaimTaskId(int postClaimTaskId) {
+        this.postClaimTaskId = postClaimTaskId;
+    }
+
+    public boolean isRewardClaimed() {
+        return rewardClaimed;
+    }
+
+    public void setRewardClaimed(boolean rewardClaimed) {
+        this.rewardClaimed = rewardClaimed;
     }
 
     /**

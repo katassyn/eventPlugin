@@ -123,15 +123,19 @@ public class WinterEventMobListener implements Listener {
                 // NON-PHYSICAL COLLECTION: Candy Cane (from Sugar Goblins)
                 if (baseMobType.equals("sugar_goblin_miner")) {
                     if (Math.random() < 0.175) { // 17.5% chance
-                        boolean completed = winterEventManager.getQuestManager().addQuestProgress(
-                            participantId, "candy_cane", 1, false);
+                        // Only progress and show message if quest 3 (Candy Cane) is accepted AND not completed
+                        if (winterEventManager.getQuestManager().isQuestAccepted(participantId, 3) &&
+                            !winterEventManager.getQuestManager().isQuestCompleted(participantId, 3)) {
+                            boolean completed = winterEventManager.getQuestManager().addQuestProgress(
+                                participantId, "candy_cane", 1, false);
 
-                        int progress = winterEventManager.getQuestManager().getQuestProgress(participantId, 3);
-                        participant.sendMessage("§e§l[Winter Event] §a+1 Candy Cane! §7(" + progress + "/150)");
+                            int progress = winterEventManager.getQuestManager().getQuestProgress(participantId, 3);
+                            participant.sendMessage("§e§l[Winter Event] §a+1 Candy Cane! §7(" + progress + "/150)");
 
-                        if (completed) {
-                            participant.sendMessage("§a§lQuest completed!");
-                            participant.sendTitle("§aQuest Complete!", "§7Sweet Collector", 10, 40, 10);
+                            if (completed) {
+                                participant.sendMessage("§a§lQuest completed!");
+                                participant.sendTitle("§aQuest Complete!", "§7Sweet Collector", 10, 40, 10);
+                            }
                         }
                     }
                 }
@@ -139,15 +143,19 @@ public class WinterEventMobListener implements Listener {
                 // NON-PHYSICAL COLLECTION: Frozen Shard (from Snow Wolves)
                 if (baseMobType.equals("snow_wolf")) {
                     if (Math.random() < 0.175) { // 17.5% chance
-                        boolean completed = winterEventManager.getQuestManager().addQuestProgress(
-                            participantId, "frozen_shard", 1, false);
+                        // Only progress and show message if quest 10 (Frozen Shard) is accepted AND not completed
+                        if (winterEventManager.getQuestManager().isQuestAccepted(participantId, 10) &&
+                            !winterEventManager.getQuestManager().isQuestCompleted(participantId, 10)) {
+                            boolean completed = winterEventManager.getQuestManager().addQuestProgress(
+                                participantId, "frozen_shard", 1, false);
 
-                        int progress = winterEventManager.getQuestManager().getQuestProgress(participantId, 10);
-                        participant.sendMessage("§e§l[Winter Event] §b+1 Frozen Shard! §7(" + progress + "/150)");
+                            int progress = winterEventManager.getQuestManager().getQuestProgress(participantId, 10);
+                            participant.sendMessage("§e§l[Winter Event] §b+1 Frozen Shard! §7(" + progress + "/150)");
 
-                        if (completed) {
-                            participant.sendMessage("§a§lQuest completed!");
-                            participant.sendTitle("§aQuest Complete!", "§7Winter Shards", 10, 40, 10);
+                            if (completed) {
+                                participant.sendMessage("§a§lQuest completed!");
+                                participant.sendTitle("§aQuest Complete!", "§7Winter Shards", 10, 40, 10);
+                            }
                         }
                     }
                 }

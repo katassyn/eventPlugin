@@ -35,6 +35,21 @@ public class AdminWinterQuestRewardEditorGUI implements Listener {
         boolean isEditing = false;
     }
 
+    // Custom holders to reliably identify our inventories (prevents button dragging issues)
+    private static class QuestSelectionHolder implements org.bukkit.inventory.InventoryHolder {
+        private final Session session;
+        QuestSelectionHolder(Session session) { this.session = session; }
+        public Session getSession() { return session; }
+        @Override public Inventory getInventory() { return null; }
+    }
+
+    private static class RewardEditorHolder implements org.bukkit.inventory.InventoryHolder {
+        private final Session session;
+        RewardEditorHolder(Session session) { this.session = session; }
+        public Session getSession() { return session; }
+        @Override public Inventory getInventory() { return null; }
+    }
+
     public AdminWinterQuestRewardEditorGUI(WinterQuestManager questManager, JavaPlugin plugin) {
         this.questManager = questManager;
         this.plugin = plugin;
@@ -52,7 +67,8 @@ public class AdminWinterQuestRewardEditorGUI implements Listener {
         Session session = sessions.computeIfAbsent(player.getUniqueId(), k -> new Session());
         session.isEditing = false;
 
-        Inventory inv = Bukkit.createInventory(null, 54, "§6§lWinter Quests - Select Quest");
+        QuestSelectionHolder holder = new QuestSelectionHolder(session);
+        Inventory inv = Bukkit.createInventory(holder, 54, "§6§lWinter Quests - Select Quest");
 
         // Fill background
         ItemStack bg = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
@@ -92,7 +108,8 @@ public class AdminWinterQuestRewardEditorGUI implements Listener {
             return;
         }
 
-        Inventory inv = Bukkit.createInventory(null, 54, "§6§lEdit Quest " + questId + " Rewards");
+        RewardEditorHolder holder = new RewardEditorHolder(session);
+        Inventory inv = Bukkit.createInventory(holder, 54, "§6§lEdit Quest " + questId + " Rewards");
 
         // Add current rewards (slots 0-25)
         List<ItemStack> currentRewards = questManager.getQuestRewards(questId);
@@ -170,29 +187,27 @@ public class AdminWinterQuestRewardEditorGUI implements Listener {
     public void onClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
         UUID playerId = player.getUniqueId();
-        Inventory inv = openGUIs.get(playerId);
-
-        if (inv == null || !event.getInventory().equals(inv)) {
-            return;
-        }
-
         Session session = sessions.get(playerId);
-        if (session == null) {
-            event.setCancelled(true);
-            return;
+        if (session == null) return;
+
+        Object holder = event.getInventory().getHolder();
+        if (!(holder instanceof QuestSelectionHolder) && !(holder instanceof RewardEditorHolder)) {
+            return; // Not our GUI
         }
+
+        int slot = event.getRawSlot();
+        Inventory clickedInventory = event.getClickedInventory();
 
         // Stage 1: Quest selection
-        if (!session.isEditing) {
+        if (holder instanceof QuestSelectionHolder) {
             event.setCancelled(true);
 
-            int slot = event.getRawSlot();
             ItemStack clicked = event.getCurrentItem();
             if (clicked == null || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE) {
                 return;
             }
 
-            // Find which quest was clicked
+            // Find which quest was clicked (two rows: 10-16 except 16? and 28-34) using same mapping as open()
             List<WinterQuest> allQuests = questManager.getAllQuests();
             for (int i = 0; i < allQuests.size(); i++) {
                 int questSlot = i < 7 ? (10 + i) : (28 + (i - 7));
@@ -204,32 +219,38 @@ public class AdminWinterQuestRewardEditorGUI implements Listener {
             }
         }
         // Stage 2: Reward editing
-        else {
-            int slot = event.getRawSlot();
+        else if (holder instanceof RewardEditorHolder) {
+            // Cancel by default for top inventory to prevent dragging UI items
+            if (clickedInventory != null && clickedInventory.equals(event.getInventory())) {
+                event.setCancelled(true);
+            }
 
             // Save button
             if (slot == 26) {
-                event.setCancelled(true);
-                saveRewardsFromInventory(player, session, inv);
+                saveRewardsFromInventory(player, session, event.getInventory());
                 return;
             }
 
             // Back button
             if (slot == 53) {
-                event.setCancelled(true);
                 open(player);
                 return;
             }
 
-            // Info button
+            // Info button - no action
             if (slot == 49) {
-                event.setCancelled(true);
                 return;
             }
 
-            // Allow editing slots 0-25
-            if (slot < 0 || slot > 25) {
-                event.setCancelled(true);
+            // Allow interaction with reward slots 0-25
+            if (slot >= 0 && slot <= 25) {
+                event.setCancelled(false);
+                return;
+            }
+
+            // Allow clicks in the player's own inventory (bottom part)
+            if (clickedInventory != null && clickedInventory.equals(player.getInventory())) {
+                event.setCancelled(false);
             }
         }
     }

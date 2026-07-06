@@ -115,17 +115,22 @@ public class WinterSummitManager {
             WinterSummitInstance instance = new WinterSummitInstance(
                     player.getUniqueId(), bossType, difficulty, origin, region);
 
-            // Set spawn locations
+            // Set spawn locations (Y+2 to spawn 1 block ABOVE the marker, not inside/on it)
             if (!result.playerSpawnMarkerOffsets().isEmpty()) {
                 SchematicHandler.BlockOffset offset = result.playerSpawnMarkerOffsets().get(0);
-                Location playerSpawn = origin.clone().add(offset.x(), offset.y(), offset.z());
+                // Marker is at offset.y(), we want player at offset.y() + 1 (one block above marker)
+                // Adding +2 to compensate for marker being at ground level
+                Location playerSpawn = origin.clone().add(offset.x() + 0.5, offset.y() + 2, offset.z() + 0.5);
                 instance.setPlayerSpawnLocation(playerSpawn);
+                Bukkit.getLogger().info("[Winter Summit] Player spawn set to: " + playerSpawn);
             }
 
             if (!result.finalBossMarkerOffsets().isEmpty()) {
                 SchematicHandler.BlockOffset offset = result.finalBossMarkerOffsets().get(0);
-                Location bossSpawn = origin.clone().add(offset.x(), offset.y(), offset.z());
+                // Marker is at offset.y(), we want boss at offset.y() + 1 (one block above marker)
+                Location bossSpawn = origin.clone().add(offset.x() + 0.5, offset.y() + 2, offset.z() + 0.5);
                 instance.setBossSpawnLocation(bossSpawn);
+                Bukkit.getLogger().info("[Winter Summit] Boss spawn set to: " + bossSpawn);
             }
 
             // Store instance
@@ -237,7 +242,15 @@ public class WinterSummitManager {
                 int depth = max.getZ() - min.getZ() + 1;
 
                 org.bukkit.util.Vector size = new org.bukkit.util.Vector(width, height, depth);
-                schematicHandler.clearRegion(instance.getPasteOrigin().getWorld(), instance.getPasteOrigin(), size);
+
+                // Use actual region minimum point, not paste origin (origin can have offsets from schematic)
+                Location clearOrigin = new Location(
+                        instance.getPasteOrigin().getWorld(),
+                        min.getX(),
+                        min.getY(),
+                        min.getZ()
+                );
+                schematicHandler.clearRegion(clearOrigin.getWorld(), clearOrigin, size);
 
                 plugin.getLogger().info("[Winter Event] Cleaned up instance " + instanceId + " and cleared blocks");
             } catch (Exception e) {

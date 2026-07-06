@@ -45,6 +45,40 @@ public class WinterQuestManager {
     }
 
     /**
+     * Reset all Winter Event quest data for all players (for event rerun).
+     * Clears in-memory caches and deletes database rows for this event.
+     */
+    public void resetAllData() {
+        // Clear in-memory
+        playerProgress.clear();
+        completedQuests.clear();
+        acceptedQuests.clear();
+        claimedRewards.clear();
+
+        // Clear persistent state
+        try (var conn = database.getConnection();
+             var ps1 = conn.prepareStatement("DELETE FROM winter_event_quest_progress WHERE event_id=?");
+             var ps2 = conn.prepareStatement("DELETE FROM winter_event_quest_completed WHERE event_id=?");
+             var ps3 = conn.prepareStatement("DELETE FROM winter_event_quest_accepted WHERE event_id=?");
+             var ps4 = conn.prepareStatement("DELETE FROM winter_event_quest_claimed WHERE event_id=?")) {
+
+            ps1.setString(1, eventId);
+            ps1.executeUpdate();
+
+            ps2.setString(1, eventId);
+            ps2.executeUpdate();
+
+            ps3.setString(1, eventId);
+            ps3.executeUpdate();
+
+            ps4.setString(1, eventId);
+            ps4.executeUpdate();
+        } catch (SQLException e) {
+            Bukkit.getLogger().severe("[Winter Event] Failed to reset quest data: " + e.getMessage());
+        }
+    }
+
+    /**
      * Initialize all 14 quests from config.
      */
     private void initializeQuests() {

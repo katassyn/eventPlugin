@@ -123,6 +123,12 @@ public class WinterCaveManager {
             return;
         }
 
+        // Prevent double reward from multiple clicks
+        if (activeInstance.isRewardClaimed()) {
+            return;
+        }
+        activeInstance.setRewardClaimed(true);
+
         // Cancel timer
         if (activeInstance.getTimerTaskId() != -1) {
             Bukkit.getScheduler().cancelTask(activeInstance.getTimerTaskId());
@@ -142,8 +148,38 @@ public class WinterCaveManager {
         // Record claim
         rewardDAO.recordClaim(player.getUniqueId(), currentDay);
 
-        // Unlock instance
-        releaseInstance();
+        // Start countdown titles and then teleport to spawn using Essentials
+        final UUID pid = player.getUniqueId();
+        final String spawnCommand = config.getSection("winter_event.winter_cave").getString("spawn_command", "spawn");
+        final int[] seconds = {5};
+
+        int taskId = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            // Instance might be released or player might be gone
+            if (activeInstance == null || !pid.equals(activeInstance.getPlayerId())) {
+                return; // Let task be cancelled via releaseInstance safeguard
+            }
+
+            Player p = Bukkit.getPlayer(pid);
+            if (p == null) {
+                return; // Player offline; release will cancel
+            }
+
+            if (seconds[0] > 0) {
+                // Show title countdown 5..1
+                String title = "§b§lReturning to spawn";
+                String sub = "§7Teleport in §f" + seconds[0] + "§7s";
+                p.sendTitle(title, sub, 0, 20, 0);
+                seconds[0]--;
+            } else {
+                // Teleport to spawn via Essentials and release instance
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), spawnCommand + " " + p.getName());
+                p.sendMessage("§f§l[Winter Event] §eReturning to spawn...");
+                // Release and cancel task
+                releaseInstance();
+            }
+        }, 0L, 20L).getTaskId();
+
+        activeInstance.setPostClaimTaskId(taskId);
     }
 
     /**
@@ -169,6 +205,9 @@ public class WinterCaveManager {
         if (activeInstance != null) {
             if (activeInstance.getTimerTaskId() != -1) {
                 Bukkit.getScheduler().cancelTask(activeInstance.getTimerTaskId());
+            }
+            if (activeInstance.getPostClaimTaskId() != -1) {
+                Bukkit.getScheduler().cancelTask(activeInstance.getPostClaimTaskId());
             }
             unlockInstanceInDatabase();
             activeInstance = null;
@@ -250,5 +289,13 @@ public class WinterCaveManager {
      */
     public void cleanup() {
         releaseInstance();
+    }
+
+    /**
+     * Reset all claims for new event edition.
+     */
+    public void resetClaims() {
+        rewardDAO.clearAllClaims();
+        plugin.getLogger().info("[Winter Cave] All reward claims have been reset");
     }
 }

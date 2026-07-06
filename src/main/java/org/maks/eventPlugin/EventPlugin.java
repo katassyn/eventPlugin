@@ -60,6 +60,8 @@ public final class EventPlugin extends JavaPlugin {
     private org.maks.eventPlugin.winterevent.wintercave.gui.WinterCaveRewardsGUI winterCaveRewardsGUI;
     private org.maks.eventPlugin.winterevent.gui.WinterQuestGUI winterQuestGUI;
     private org.maks.eventPlugin.winterevent.gui.AdminWinterQuestRewardEditorGUI winterAdminQuestRewardGUI;
+    // Big Present manager (Winter Event)
+    private org.maks.eventPlugin.winterevent.bigpresent.BigPresentManager bigPresentManager;
 
     @Override
     public void onEnable() {
@@ -232,6 +234,10 @@ public final class EventPlugin extends JavaPlugin {
             EventCommand eventCommand = new EventCommand(eventManagers, databaseManager, progressGUI, rewardGUI, configManager);
             eventCommand.setFullMoonManager(fullMoonManager); // Pass FullMoonManager for quest reset
             eventCommand.setNewMoonManager(newMoonManager); // Add New Moon Manager
+            // Provide BigPresentManager for Winter Event resets
+            eventCommand.setBigPresentManager(this.bigPresentManager);
+            // Provide WinterEventManager so /event start|stop winter_event can reset quests between editions
+            eventCommand.setWinterEventManager(this.winterEventManager);
             cmd.setExecutor(eventCommand);
         } else {
             Bukkit.getLogger().warning("Event command not found in plugin.yml");
@@ -352,6 +358,19 @@ public final class EventPlugin extends JavaPlugin {
             winterQuestGUI = new org.maks.eventPlugin.winterevent.gui.WinterQuestGUI(winterEventManager.getQuestManager());
             winterAdminQuestRewardGUI = new org.maks.eventPlugin.winterevent.gui.AdminWinterQuestRewardEditorGUI(winterEventManager.getQuestManager(), this);
 
+            // Create Winter Summit portal components (portal + confirmation GUI)
+            var winterPortalListener = new org.maks.eventPlugin.winterevent.summit.listener.WinterPortalListener(
+                winterEventManager,
+                winterEventManager.getWinterSummitManager(),
+                null
+            );
+            var winterPortalGUI = new org.maks.eventPlugin.winterevent.summit.gui.WinterPortalConfirmationGUI(
+                winterEventManager,
+                winterEventManager.getWinterSummitManager(),
+                winterPortalListener
+            );
+            winterPortalListener.setPortalGUI(winterPortalGUI);
+
             // Register listeners
             getServer().getPluginManager().registerEvents(
                 new org.maks.eventPlugin.winterevent.listener.GiftDropListener(winterEventManager), this);
@@ -361,10 +380,14 @@ public final class EventPlugin extends JavaPlugin {
                 new org.maks.eventPlugin.winterevent.wintercave.listener.WinterCaveMobListener(winterEventManager.getWinterCaveManager()), this);
             getServer().getPluginManager().registerEvents(
                 new org.maks.eventPlugin.winterevent.wintercave.listener.WinterCavePlayerListener(winterEventManager.getWinterCaveManager()), this);
-            getServer().getPluginManager().registerEvents(
-                new org.maks.eventPlugin.winterevent.summit.listener.SummitInteractionListener(winterEventManager.getWinterSummitManager(), winterEventManager, configManager), this);
+            if (configManager.getBoolean("winter_event.summit.block_interactions_enabled", false)) {
+                getServer().getPluginManager().registerEvents(
+                    new org.maks.eventPlugin.winterevent.summit.listener.SummitInteractionListener(winterEventManager.getWinterSummitManager(), winterEventManager, configManager), this);
+            }
             getServer().getPluginManager().registerEvents(
                 new org.maks.eventPlugin.winterevent.summit.listener.SummitBossListener(winterEventManager.getWinterSummitManager(), winterEventManager, configManager, this), this);
+            getServer().getPluginManager().registerEvents(
+                winterPortalListener, this);
 
             // Register GUIs as listeners
             getServer().getPluginManager().registerEvents(winterDifficultyGUI, this);
@@ -372,6 +395,7 @@ public final class EventPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(winterCaveRewardsGUI, this);
             getServer().getPluginManager().registerEvents(winterQuestGUI, this);
             getServer().getPluginManager().registerEvents(winterAdminQuestRewardGUI, this);
+            getServer().getPluginManager().registerEvents(winterPortalGUI, this);
 
             // Register commands
             org.maks.eventPlugin.winterevent.wintercave.command.WinterCaveCommand winterCaveCommand =
@@ -382,6 +406,23 @@ public final class EventPlugin extends JavaPlugin {
             org.maks.eventPlugin.winterevent.command.WinterQuestCommand winterQuestCommand =
                 new org.maks.eventPlugin.winterevent.command.WinterQuestCommand(winterQuestGUI, winterAdminQuestRewardGUI);
             getCommand("winter_quests").setExecutor(winterQuestCommand);
+
+            // Big Present setup
+            this.bigPresentManager = new org.maks.eventPlugin.winterevent.bigpresent.BigPresentManager(
+                this, databaseManager, winterEventManager.getEventManager().getEventId()
+            );
+            var bigPresentAdminGUI = new org.maks.eventPlugin.winterevent.bigpresent.AdminBigPresentRewardEditorGUI(
+                this.bigPresentManager, this
+            );
+            getServer().getPluginManager().registerEvents(
+                bigPresentAdminGUI, this);
+            getServer().getPluginManager().registerEvents(
+                new org.maks.eventPlugin.winterevent.bigpresent.BigPresentInteractionListener(this.bigPresentManager), this);
+            var bigPresentCommand = new org.maks.eventPlugin.winterevent.bigpresent.command.BigPresentCommand(
+                this.bigPresentManager, bigPresentAdminGUI
+            );
+            getCommand("big_present").setExecutor(bigPresentCommand);
+            getCommand("big_present_rewards").setExecutor(bigPresentCommand);
 
             // Cleanup leftover instances
             winterEventManager.getWinterCaveManager().cleanupLeftoverInstance();

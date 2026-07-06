@@ -255,6 +255,19 @@ public class DatabaseManager {
                     "item TEXT NOT NULL," +
                     "INDEX(event_id, quest_id))");
 
+            // Big Present tables
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS big_present_rewards(" +
+                    "reward_id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "event_id VARCHAR(100)," +
+                    "tier VARCHAR(16) NOT NULL," +
+                    "item TEXT NOT NULL," +
+                    "INDEX(event_id, tier))");
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS big_present_opened(" +
+                    "event_id VARCHAR(100)," +
+                    "player_uuid VARCHAR(36)," +
+                    "tier VARCHAR(16) NOT NULL," +
+                    "PRIMARY KEY(event_id, player_uuid, tier))");
+
             Bukkit.getLogger().info("[EventPlugin] Database tables setup complete");
 
         } catch (SQLException ex) {

@@ -28,6 +28,20 @@ public class WinterCaveDailyRewardDAO {
      * Set reward for a specific day (1-30).
      */
     public void setDayReward(int day, ItemStack item) {
+        // If item is null or AIR, remove the reward for that day
+        if (item == null || item.getType() == org.bukkit.Material.AIR) {
+            String delSql = "DELETE FROM winter_cave_daily_rewards WHERE event_id = ? AND day = ?";
+            try (Connection conn = database.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(delSql)) {
+                ps.setString(1, eventId);
+                ps.setInt(2, day);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                Bukkit.getLogger().severe("[Winter Cave] Failed to clear day reward: " + e.getMessage());
+            }
+            return;
+        }
+
         String sql = "REPLACE INTO winter_cave_daily_rewards (event_id, day, item) VALUES (?, ?, ?)";
         try (Connection conn = database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {

@@ -280,12 +280,14 @@ public class WinterEventManager {
     public void stopEvent() {
         playerDifficulty.clear();
         winterCaveManager.cleanup();
+        winterCaveManager.resetClaims(); // Reset daily reward claims between editions
         winterSummitManager.cleanupLeftoverInstances();
         if (questManager != null) {
-            questManager.cleanup();
+            // Reset all quest data (DB + memory) between editions
+            questManager.resetAllData();
         }
         eventManager.stop();
-        plugin.getLogger().info("[Winter Event] Event stopped");
+        plugin.getLogger().info("[Winter Event] Event stopped, quest progress and cave claims reset");
     }
 
     /**
@@ -296,7 +298,7 @@ public class WinterEventManager {
         winterCaveManager.cleanup();
         winterSummitManager.cleanupLeftoverInstances();
         if (questManager != null) {
-            questManager.cleanup();
+            questManager.resetAllData();
         }
         plugin.getLogger().info("[Winter Event] All data reset");
     }

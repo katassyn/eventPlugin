@@ -40,6 +40,6 @@ public class WinterCaveMobListener implements Listener {
         // Mark mob as killed
         caveManager.setMobKilled(player.getUniqueId());
 
-        player.sendMessage("§f§l[Winter Event] §aYou defeated the creature! Find a player head and claim your reward.");
+        player.sendMessage("§f§l[Winter Event] §aClick any present in the cave to receive your reward!");
     }
 }

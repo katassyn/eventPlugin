@@ -1,40 +1,67 @@
-# Debug mode - shows detailed logs in console
-# Set to true to enable debug logging, false to disable (default: false)
-debug: false
-
 database:
-  host: localhost
-  port: "3306"
-  name: database
-  user: user
-  password: pass
+  host: CHANGE_ME
+  port: '3306'
+  name: CHANGE_ME
+  user: CHANGE_ME
+  password: CHANGE_ME
 
 events:
-  "monster_hunt":
-    name: "Monster Hunt"
-    active: true
+  monster_hunt:
+    name: Monster Hunt
+    active: false
     duration_days: 14
     max_progress: 12000
-    description: "The realm is overrun with monsters! Join the Monster Hunt and track your\n progress as you defeat different creature types. Reach milestones to earn increasingly\n valuable rewards. Will you rise to become the ultimate monster slayer?"
+    description: |-
+      The realm is overrun with monsters! Join the Monster Hunt and track your
+       progress as you defeat different creature types. Reach milestones to earn increasingly
+       valuable rewards. Will you rise to become the ultimate monster slayer?
     drop_chances:
-      "0": 75
-      "1": 10
-      "2": 10
-      "3": 3
-      "5": 2
+      '0': 75
+      '1': 10
+      '2': 10
+      '3': 3
+      '5': 2
 
-  "full_moon":
-    name: "Full Moon"
+  miner_day:
+    name: Miner Day
     active: false
-    duration_days: 5
-    max_progress: 15000
-    description: "The full moon rises over Warhlom! Battle werewolves and blood mages\n in this challenging event. Complete quests and venture into the Blood Moon\n arena to earn exclusive rewards!"
+    duration_days: 1
+    max_progress: 250
+    description: |-
+      It's Miner Day! Celebrate the art of mining with special bonuses:
+       x2 ore sell prices and progress for every ore, plant, bone or
+       crystal you mine! Reach 250 progress to earn rewards!
 
+  full_moon:
+    name: Full Moon
+    active: false
+    duration_days: 3
+    max_progress: 15000
+    description: |-
+      The full moon rises over Warhlom! Battle werewolves and blood mage
+       in this challenging event. Complete quests and venture into the Blood Moon
+       arena to earn exclusive rewards!
+  new_moon:
+    name: New Moon
+    active: false
+    duration_days: 3
+    max_progress: 15000
+    description: |-
+      The new moon brings darkness to Black Bog! Two quest chains are available:
+       White Lord Chain (Quests 1-5) and Black Lord Chain (Quests 6-10).
+       Complete Quest 3 to unlock the White Realm portal, and Quest 8 to unlock the Black Realm portal!
+  winter_event:
+    name: Winter Event
+    active: false
+    duration_days: 30
+    max_progress: 100000
+    description: |-
+      A greedy bear has stolen all the Christmas sweets, and Krampus has kidnapped
+       all the children! Venture into the Winter Cave for daily rewards, complete quest chains
+       to track down the culprits, and challenge powerful bosses in the Winter Summit arenas!
 # Full Moon Event Configuration
 full_moon:
-  # Debug mode - enables faster Cursed Amphora spawns for testing (1 minute instead of 1 hour)
   debug: false
-
   coordinates:
     # Map 1 (Warhlom) - Open area coordinates for each difficulty
     map1:
@@ -44,42 +71,42 @@ full_moon:
           x: -35
           y: -60
           z: -1182
-          world: "world"
+          world: world
         # Boss spawn location (above blood vial block)
         amarok_spawn:
           x: -28
           y: -61
           z: -1174
-          world: "world"
+          world: world
         # Cursed Amphora spawn location
         cursed_amphora:
           x: -57
           y: -60
           z: -1077
-          world: "world"
+          world: world
       hard:
         # Blood vial block that spawns Amarok
         blood_vial_block:
           x: 187
           y: -60
           z: -1182
-          world: "world"
+          world: world
         # Boss spawn location (above blood vial block)
         amarok_spawn:
           x: 192
           y: -61
           z: -1176
-          world: "world"
+          world: world
         # Cursed Amphora spawn location
         cursed_amphora:
           x: 165
           y: -60
           z: -1077
-          world: "world"
+          world: world
 
   # FAWE schematic settings for Map 2 (Blood Moon Arena)
   schematic:
-    file_name: "blood_moon_arena"
+    file_name: blood_moon_arena
 
     # Schematic dimensions (from 345,-64,-852 to 517,-12,-1173)
     size:
@@ -90,27 +117,27 @@ full_moon:
     # Area where instances can be placed (547,-37,-863 to 1154,-44,-2100)
     spawn_area:
       min_x: 670
-      min_y: -37  # Spawn height (superflat world)
+      min_y: -37 # Spawn height (superflat world)
       min_z: -863
-      max_x: 1154
+      max_x: 1354
       max_z: -4100
-      world: "world"
+      world: world
 
     # Spacing between instances (margin)
-    spacing: 100  # Blocks between each instance
-    max_instances: 4  # Maximum concurrent instances (2x2 grid)
+    spacing: 100 # Blocks between each instance
+    max_instances: 4 # Maximum concurrent instances (2x2 grid)
 
     # Scan for these blocks to spawn mobs
     scan_blocks:
-      player_spawn: "GOLD_BLOCK"
-      mini_boss: "OBSIDIAN"
-      final_boss: "DIAMOND_BLOCK"
-      mob_spawn: "GRASS_BLOCK"
+      player_spawn: GOLD_BLOCK
+      mini_boss: OBSIDIAN
+      final_boss: DIAMOND_BLOCK
+      mob_spawn: GRASS_BLOCK
 
   # Warp names from Essentials for Map 1
   warps:
-    normal: "fullmoon_normal"
-    hard: "fullmoon_hard"
+    normal: fullmoon_normal
+    hard: fullmoon_hard
 
   # Level and currency requirements
   requirements:
@@ -118,49 +145,611 @@ full_moon:
       level: 50
     hard:
       level: 75
-      ips: 15  # Entry cost for Map 1 hard mode
+      ips: 15 # Entry cost for Map 1 hard mode
 
   # Map 2 (Blood Moon Arena) entry costs
   map2_entry_cost:
-    normal: 0  # Free after unlocking
-    hard: 30  # 30 IPs for hard arena
+    normal: 0 # Free after unlocking
+    hard: 30 # 30 IPs for hard arena
 
-  # Full Moon Quests Configuration
-  # Note: Quest rewards are managed through /fullmoon admin quest_rewards command
   quests:
-    1:
-      description: "Kill 100 Werewolves"
-      target_mob: "werewolf"
+    '1':
+      description: Kill 100 Werewolves
+      target_mob: werewolf
       required_kills: 100
       order_index: 0
 
-    2:
-      description: "Defeat Amarok, First Werewolf"
-      target_mob: "amarok"
+    '2':
+      description: Defeat Amarok, First Werewolf
+      target_mob: amarok
       required_kills: 1
       order_index: 1
 
-    3:
-      description: "Kill 500 Werewolves"
-      target_mob: "werewolf"
-      required_kills: 500
+    '3':
+      description: Kill 200 Werewolves
+      target_mob: werewolf
+      required_kills: 200
       order_index: 2
 
-    4:
-      description: "Defeat Amarok 5 times"
-      target_mob: "amarok"
+    '4':
+      description: Defeat Amarok 5 times
+      target_mob: amarok
       required_kills: 5
       order_index: 3
 
-    5:
-      description: "Defeat Sanguis the Blood Mage"
-      target_mob: "sanguis"
+    '5':
+      description: Defeat Sanguis the Blood Mage
+      target_mob: sanguis
       required_kills: 1
       order_index: 4
 
-    6:
-      description: "Defeat Sanguis 5 times (Hard)"
-      target_mob: "sanguis_hard"
+    '6':
+      description: Defeat Sanguis 5 times (Hard)
+      target_mob: sanguis_hard
       required_kills: 5
       order_index: 5
 
+new_moon:
+  # Debug mode
+  debug: false
+
+  coordinates:
+    # Portal locations (4 portals total: 2 normal, 2 hard)
+    # Each portal is defined by a rectangular bounding box
+    portals:
+      white_realm_normal:
+        # White Realm portal (Normal) - center: -5065,-60,-685 x -5064,-58,-685
+        min_x: -5066
+        min_y: -61
+        min_z: -686
+        max_x: -5063
+        max_y: -57
+        max_z: -684
+        world: world
+      white_realm_hard:
+        # White Realm portal (Hard) - center: -5393,-60,-685 x -5392,-58,-685
+        min_x: -5394
+        min_y: -61
+        min_z: -686
+        max_x: -5391
+        max_y: -57
+        max_z: -684
+        world: world
+      black_realm_normal:
+        # Black Realm portal (Normal) - center: -4894,-60,-708 x -4893,-58,-708
+        min_x: -4895
+        min_y: -61
+        min_z: -709
+        max_x: -4892
+        max_y: -57
+        max_z: -707
+        world: world
+      black_realm_hard:
+        # Black Realm portal (Hard) - center: -5222,-60,-708 x -5221,-58,-708
+        min_x: -5223
+        min_y: -61
+        min_z: -709
+        max_x: -5220
+        max_y: -57
+        max_z: -707
+        world: world
+
+  # FAWE schematic settings for Map 2 (White and Black Realms)
+  schematic:
+    # White Realm schematic
+    # Shared spawn area with Black Realm: -5747,-52,-448 x -6593,27,-1377
+    white_realm:
+      file_name: new_moon_white_realm
+      size:
+        x: 225
+        y: 50
+        z: 144
+      spawn_area:
+        min_x: -6593
+        min_y: -52
+        min_z: -1377
+        max_x: -5747
+        max_z: -448
+        world: world
+      spacing: 100
+      max_instances: 4
+
+    # Black Realm schematic
+    # Shared spawn area with White Realm: -5747,-52,-448 x -6593,27,-1377
+    black_realm:
+      file_name: new_moon_black_realm
+      size:
+        x: 221
+        y: 44
+        z: 148
+      spawn_area:
+        min_x: -6593
+        min_y: -52
+        min_z: -1377
+        max_x: -5747
+        max_z: -448
+        world: world
+      spacing: 100
+      max_instances: 4
+
+    # Scan blocks for White Realm (uses CALCITE for mob spawns)
+    white_realm_scan_blocks:
+      player_spawn: GOLD_BLOCK
+      mini_boss: OBSIDIAN
+      final_boss: DIAMOND_BLOCK # Lord Silvanus spawn location
+      mob_spawn: CALCITE # White realm uses CALCITE
+      cauldron: CAULDRON # Fairy Wood damage buff block
+      lord_respawn_1: END_PORTAL_FRAME # 100 Fairy Wood
+      lord_respawn_2: END_PORTAL_FRAME # 200 Fairy Wood
+      lord_respawn_3: END_PORTAL_FRAME # 300 Fairy Wood
+
+    # Scan blocks for Black Realm (uses COARSE_DIRT for mob spawns)
+    black_realm_scan_blocks:
+      player_spawn: GOLD_BLOCK
+      mini_boss: OBSIDIAN
+      final_boss: DIAMOND_BLOCK # Lord Malachai spawn location
+      mob_spawn: COARSE_DIRT # Black realm uses COARSE_DIRT
+      cauldron: CAULDRON # Fairy Wood damage buff block
+      lord_respawn_1: END_PORTAL_FRAME # 100 Fairy Wood
+      lord_respawn_2: END_PORTAL_FRAME # 200 Fairy Wood
+      lord_respawn_3: END_PORTAL_FRAME # 300 Fairy Wood
+
+  # Warp names from Essentials for Map 1 (Black Bog)
+  warps:
+    normal: blackbog_normal
+    hard: blackbog_hard
+
+  # Level and currency requirements
+  requirements:
+    normal:
+      level: 50
+    hard:
+      level: 75
+      ips: 15 # Entry cost for Map 1 hard mode
+
+  # Map 2 entry costs (per portal)
+  map2_entry_cost:
+    normal:
+      new_moon_parchment: 1 # From IngredientPouchPlugin
+    hard:
+      new_moon_parchment: 1 # From IngredientPouchPlugin
+      ips: 30
+
+  # Fairy Wood costs
+  cauldron_buff_cost: 50 # 50 Fairy Wood for 1 minute damage buff
+  lord_respawn_costs:
+    first: 100 # First respawn
+    second: 200 # Second respawn
+    third: 300 # Third respawn
+
+  # New Moon Quests Configuration
+  # Quests unlock sequentially within each chain
+  # Two chains: White (1-5) and Black (6-10)
+  # Quest 3 unlocks White Realm portal
+  # Quest 8 unlocks Black Realm portal
+  quests:
+    # WHITE LORD CHAIN
+    '1':
+      chain_type: white
+      description: Kill 100 Lunatic Goblins
+      target_mob: lunatic_goblin
+      required_kills: 100
+      order_index: 0
+      hard_mode: false
+
+    '2':
+      chain_type: white
+      description: Collect 30 White Essence from Walking Wood
+      target_mob: walking_wood
+      required_kills: 30
+      order_index: 1
+      hard_mode: false
+
+    '3':
+      chain_type: white
+      description: Defeat Patriarch of the Lords
+      target_mob: patriarch_of_the_lords
+      required_kills: 1
+      order_index: 2
+      hard_mode: false
+
+    '4':
+      chain_type: white
+      description: Defeat Lord Silvanus, White King 3 times
+      target_mob: lord_silvanus
+      required_kills: 3
+      order_index: 3
+      hard_mode: false
+
+    '5':
+      chain_type: white
+      description: Defeat Lord Silvanus 5 times (Hard)
+      target_mob: lord_silvanus
+      required_kills: 5
+      order_index: 4
+      hard_mode: true
+
+    # BLACK LORD CHAIN
+    '6':
+      chain_type: black
+      description: Kill 100 Nighty Witches
+      target_mob: nighty_witch
+      required_kills: 100
+      order_index: 0
+      hard_mode: false
+
+    '7':
+      chain_type: black
+      description: Collect 50 Dark Essence from Nighty Witches
+      target_mob: nighty_witch
+      required_kills: 50
+      order_index: 1
+      hard_mode: false
+
+    '8':
+      chain_type: black
+      description: Defeat Patriarch of the Lords
+      target_mob: patriarch_of_the_lords
+      required_kills: 1
+      order_index: 2
+      hard_mode: false
+
+    '9':
+      chain_type: black
+      description: Defeat Lord Malachai, Black King 3 times
+      target_mob: lord_malachai
+      required_kills: 3
+      order_index: 3
+      hard_mode: false
+
+    '10':
+      chain_type: black
+      description: Defeat Lord Malachai 5 times (Hard)
+      target_mob: lord_malachai
+      required_kills: 5
+      order_index: 4
+      hard_mode: true
+
+winter_event:
+  debug: true
+
+  # Gift drop system (globalny drop z wszystkich mobďż˝w)
+  gift_drop:
+    global_chance: 0.001 # 0.1% z KAďż˝DEGO moba
+    rarities:
+      green: 50.0
+      blue: 25.0
+      purple: 10.0
+      orange: 6.875
+      gold: 5.0
+      red: 3.125
+    boxes:
+      green: green_gift
+      blue: blue_gift
+      purple: purple_gift
+      orange: orange_gift
+      gold: gold_gift
+      red: red_gift
+
+  # Winter Cave (daily gift system)
+  winter_cave:
+    enabled: true
+    spawn_location:
+      world: world
+      x: 2510
+      y: -61
+      z: -52
+    mob_name: winter_cave_mob
+    warp_name: winter_cave
+    spawn_command: spawn
+    timer_minutes: 5
+    permission: eventplugin.winter_cave
+
+  # Winter Summit (3 poziomy trudnoďż˝ci)
+  summit:
+    enabled: true
+    # Legacy entry by right-clicking a block (deprecated)
+    # Set to true to enable old interactions; default is false (use portals + GUI instead)
+    block_interactions_enabled: false
+    requirements:
+      infernal:
+        level: 50
+        ips: 0
+        warp: winter_summit_inf
+      hell:
+        level: 65
+        ips: 15
+        warp: winter_summit_hell
+      blood:
+        level: 80
+        ips: 30
+        warp: winter_summit_blood
+
+    # Koszty wejďż˝cia do bossďż˝w
+    boss_costs:
+      bear:
+        infernal: 1
+        hell: 2
+        blood: 3
+      krampus:
+        infernal: 1
+        hell: 2
+        blood: 3
+    # Portal coordinates (players step into these to open the GUI)
+    portals:
+      infernal:
+        bear:
+          world: world
+          min_x: 2750
+          min_y: -60
+          min_z: 55
+          max_x: 2753
+          max_y: -57
+          max_z: 55
+        krampus:
+          world: world
+          min_x: 2770
+          min_y: -60
+          min_z: 260
+          max_x: 2773
+          max_y: -57
+          max_z: 260
+      hell:
+        bear:
+          world: world
+          min_x: 2750
+          min_y: -60
+          min_z: 405
+          max_x: 2753
+          max_y: -57
+          max_z: 405
+        krampus:
+          world: world
+          min_x: 2770
+          min_y: -60
+          min_z: 610
+          max_x: 2773
+          max_y: -57
+          max_z: 610
+      blood:
+        bear:
+          world: world
+          min_x: 2750
+          min_y: -60
+          min_z: 755
+          max_x: 2753
+          max_y: -57
+          max_z: 755
+        krampus:
+          world: world
+          min_x: 2770
+          min_y: -60
+          min_z: 960
+          max_x: 2773
+          max_y: -57
+          max_z: 960
+
+    # FAWE Schematics (2 schematy)
+    schematics:
+      bear:
+        file_name: winter_bear
+        spawn_area:
+          min_x: 2040
+          min_y: -60
+          min_z: -563
+          max_x: 2578
+          max_z: -12
+          world: world
+        spacing: 135
+        max_instances: 20
+        scan_blocks:
+          player_spawn: GOLD_BLOCK
+          boss_spawn: DIAMOND_BLOCK
+      krampus:
+        file_name: winter_krampus
+        spawn_area:
+          min_x: 2040
+          min_y: -60
+          min_z: -563
+          max_x: 2578
+          max_z: -12
+          world: world
+        spacing: 135
+        max_instances: 20
+        scan_blocks:
+          player_spawn: GOLD_BLOCK
+          boss_spawn: DIAMOND_BLOCK
+
+    # MythicMob IDs dla bossďż˝w
+    bosses:
+      bear:
+        infernal: gluttonous_bear_inf
+        hell: gluttonous_bear_hell
+        blood: gluttonous_bear_blood
+      krampus:
+        infernal: krampus_spirit_inf
+        hell: krampus_spirit_hell
+        blood: krampus_spirit_blood
+
+    # Quest System (14 quests in 2 chains)
+    quests:
+      enabled: true
+      '1':
+        description: Kill 800 Sugar Goblin Miners
+        chain: bear
+        target_mob: sugar_goblin_miner
+        required_kills: 800
+        order_index: 0
+        is_blood_only: false
+        is_collection: false
+      '2':
+        description: Kill 500 Snow Wolves
+        chain: bear
+        target_mob: snow_wolf
+        required_kills: 500
+        order_index: 1
+        is_blood_only: false
+        is_collection: false
+      '3':
+        description: Collect 150 Candy Canes from Sugar Goblins
+        chain: bear
+        target_mob: candy_cane
+        required_kills: 150
+        order_index: 2
+        is_blood_only: false
+        is_collection: true
+      '4':
+        description: Defeat Gluttonous Bear 15 times (any difficulty)
+        chain: bear
+        target_mob: gluttonous_bear
+        required_kills: 15
+        order_index: 3
+        is_blood_only: false
+        is_collection: false
+      '5':
+        description: Kill 400 Dough Troll Kneaders
+        chain: bear
+        target_mob: dough_troll_kneader
+        required_kills: 400
+        order_index: 4
+        is_blood_only: false
+        is_collection: false
+      '6':
+        description: Defeat Cookie Thief Goblin 20 times
+        chain: bear
+        target_mob: cookie_thief_goblin
+        required_kills: 20
+        order_index: 5
+        is_blood_only: false
+        is_collection: false
+      '7':
+        description: Defeat Gluttonous Bear 25 times (Blood difficulty ONLY)
+        chain: bear
+        target_mob: gluttonous_bear_blood
+        required_kills: 25
+        order_index: 6
+        is_blood_only: true
+        is_collection: false
+      '8':
+        description: Kill 800 Snow Wolves
+        chain: krampus
+        target_mob: snow_wolf
+        required_kills: 800
+        order_index: 0
+        is_blood_only: false
+        is_collection: false
+      '9':
+        description: Kill 500 Sugar Goblin Miners
+        chain: krampus
+        target_mob: sugar_goblin_miner
+        required_kills: 500
+        order_index: 1
+        is_blood_only: false
+        is_collection: false
+      '10':
+        description: Collect 150 Frozen Shards from Snow Wolves
+        chain: krampus
+        target_mob: frozen_shard
+        required_kills: 150
+        order_index: 2
+        is_blood_only: false
+        is_collection: true
+      '11':
+        description: Defeat Krampus Spirit 15 times (any difficulty)
+        chain: krampus
+        target_mob: krampus_spirit
+        required_kills: 15
+        order_index: 3
+        is_blood_only: false
+        is_collection: false
+      '12':
+        description: Defeat Cookie Destroyer Sludge 20 times
+        chain: krampus
+        target_mob: cookie_destroyer_sludge
+        required_kills: 20
+        order_index: 4
+        is_blood_only: false
+        is_collection: false
+      '13':
+        description: Defeat Walking Christmas Tree 25 times
+        chain: krampus
+        target_mob: walking_christmas_tree
+        required_kills: 25
+        order_index: 5
+        is_blood_only: false
+        is_collection: false
+      '14':
+        description: Defeat Krampus Spirit 25 times (Blood difficulty ONLY)
+        chain: krampus
+        target_mob: krampus_spirit_blood
+        required_kills: 25
+        order_index: 6
+        is_blood_only: true
+        is_collection: false
+
+  # Progress system (BOSS-FOCUSED dla 30-dniowego eventu)
+  drop_chances:
+    normal_mobs:
+      infernal:
+        '1': 60.0
+        '2': 25.0
+        '3': 10.0
+        '5': 5.0
+      hell:
+        '2': 60.0
+        '3': 25.0
+        '5': 10.0
+        '8': 5.0
+      blood:
+        '3': 60.0
+        '5': 25.0
+        '8': 10.0
+        '12': 5.0
+    elite_mobs:
+      infernal:
+        '3': 60.0
+        '5': 25.0
+        '8': 10.0
+        '12': 5.0
+      hell:
+        '5': 60.0
+        '10': 25.0
+        '15': 10.0
+        '20': 5.0
+      blood:
+        '10': 60.0
+        '15': 25.0
+        '25': 10.0
+        '35': 5.0
+    mini_bosses:
+      infernal:
+        '10': 60.0
+        '20': 25.0
+        '30': 10.0
+        '40': 5.0
+      hell:
+        '20': 60.0
+        '40': 25.0
+        '60': 10.0
+        '80': 5.0
+      blood:
+        '40': 60.0
+        '80': 25.0
+        '120': 10.0
+        '150': 5.0
+    bosses:
+      infernal:
+        '300': 60.0
+        '500': 25.0
+        '700': 10.0
+        '800': 5.0
+      hell:
+        '600': 60.0
+        '1000': 25.0
+        '1400': 10.0
+        '1500': 5.0
+      blood:
+        '1000': 60.0
+        '2000': 25.0
+        '2800': 10.0
+        '3000': 5.0

@@ -65,10 +65,18 @@ public class SummitInteractionListener implements Listener {
      * Check if clicked location matches configured interaction point.
      */
     private boolean matchesLocation(Location clicked, String configPath) {
-        String world = config.getSection(configPath).getString("world");
-        int x = config.getSection(configPath).getInt("x");
-        int y = config.getSection(configPath).getInt("y");
-        int z = config.getSection(configPath).getInt("z");
+        org.bukkit.configuration.ConfigurationSection sec = config.getSection(configPath);
+        if (sec == null) {
+            return false; // Section missing => no match
+        }
+        String world = sec.getString("world");
+        int x = sec.getInt("x");
+        int y = sec.getInt("y");
+        int z = sec.getInt("z");
+
+        if (world == null || clicked.getWorld() == null) {
+            return false;
+        }
 
         return clicked.getWorld().getName().equals(world) &&
                 clicked.getBlockX() == x &&

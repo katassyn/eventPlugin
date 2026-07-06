@@ -48,8 +48,10 @@ public class MythicMobProgressListener implements Listener {
             // +++ POCZĄTEK MODYFIKACJI +++
             // Ignore the full_moon event; it is handled by FullMoonMobListener
             // Ignore the winter_event; it is handled by WinterEventMobListener
+            // Ignore the miner_day event; it is handled by MinerDayProgressListener (ore mining only)
             if (manager.getEventId().equalsIgnoreCase("full_moon") ||
-                manager.getEventId().equalsIgnoreCase("winter_event")) {
+                manager.getEventId().equalsIgnoreCase("winter_event") ||
+                manager.getEventId().equalsIgnoreCase("miner_day")) {
                 continue;
             }
             // +++ KONIEC MODYFIKACJI +++

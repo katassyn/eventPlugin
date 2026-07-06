@@ -8,6 +8,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -38,6 +39,8 @@ public class WinterQuestGUI implements Listener {
      */
     public void open(Player player) {
         UUID playerId = player.getUniqueId();
+
+        Bukkit.getLogger().info("[Winter Quest GUI DEBUG] Opening GUI for " + player.getName());
 
         Inventory inv = Bukkit.createInventory(null, 54, "§b§lWinter Event - Quests");
 
@@ -91,7 +94,9 @@ public class WinterQuestGUI implements Listener {
         inv.setItem(50, createChainStatus(playerId, "krampus"));
 
         openGUIs.put(playerId, inv);
+        Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " GUI added to openGUIs map (total: " + openGUIs.size() + ")");
         player.openInventory(inv);
+        Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " inventory opened successfully");
     }
 
     /**
@@ -243,10 +248,15 @@ public class WinterQuestGUI implements Listener {
         UUID playerId = player.getUniqueId();
         Inventory inv = openGUIs.get(playerId);
 
-        if (inv == null || !event.getInventory().equals(inv)) {
+        // Validate that the player's currently open top inventory is our GUI
+        Inventory top = event.getView().getTopInventory();
+        if (inv == null || !top.equals(inv)) {
             return;
         }
 
+        Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " clicked in GUI (slot: " + event.getRawSlot() + ")");
+
+        // Block ALL interactions while our GUI is open (top or bottom inventory)
         event.setCancelled(true);
 
         int slot = event.getRawSlot();
@@ -287,32 +297,61 @@ public class WinterQuestGUI implements Listener {
 
         // Handle claim rewards
         if (isCompleted && !isClaimed) {
+            Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " attempting to claim quest " + clickedQuest.id());
+
             // Check inventory space
             int requiredSlots = calculateRequiredSlots(player, clickedQuest.rewards());
             int emptySlots = countEmptySlots(player);
 
             if (emptySlots < requiredSlots) {
+                Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " not enough inventory space");
                 player.sendMessage("§c§l[Winter Event] §cYou need at least " + requiredSlots + " empty slots!");
                 player.sendMessage("§c§lFree up space and try again.");
                 return;
             }
 
             if (questManager.claimReward(playerId, clickedQuest.id())) {
+                Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " claimed quest " + clickedQuest.id() + " - scheduling GUI refresh in 3 ticks");
                 for (ItemStack reward : clickedQuest.rewards()) {
                     player.getInventory().addItem(reward.clone());
                 }
                 player.sendMessage("§a§l[Winter Event] §aQuest " + clickedQuest.id() + " rewards claimed!");
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-                open(player); // Refresh GUI
+
+                // Refresh GUI after 3 ticks to ensure InventoryCloseEvent completes
+                Bukkit.getScheduler().runTaskLater(
+                    Bukkit.getPluginManager().getPlugin("EventPlugin"),
+                    () -> {
+                        Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " REFRESHING GUI NOW (after claim)");
+                        if (player.isOnline()) {
+                            open(player);
+                        }
+                    },
+                    3L
+                );
             }
         }
 
         // Handle accept quest
         if (isUnlocked && !isAccepted && !isCompleted) {
+            Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " attempting to accept quest " + clickedQuest.id());
+
             if (questManager.acceptQuest(playerId, clickedQuest.id())) {
+                Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " accepted quest " + clickedQuest.id() + " - scheduling GUI refresh in 3 ticks");
                 player.sendMessage("§a§l[Winter Event] §aQuest " + clickedQuest.id() + " accepted!");
                 player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-                open(player); // Refresh GUI
+
+                // Refresh GUI after 3 ticks to ensure InventoryCloseEvent completes
+                Bukkit.getScheduler().runTaskLater(
+                    Bukkit.getPluginManager().getPlugin("EventPlugin"),
+                    () -> {
+                        Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " REFRESHING GUI NOW (after accept)");
+                        if (player.isOnline()) {
+                            open(player);
+                        }
+                    },
+                    3L
+                );
             }
         }
     }
@@ -320,7 +359,29 @@ public class WinterQuestGUI implements Listener {
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
-        openGUIs.remove(playerId);
+        Player player = (Player) event.getPlayer();
+        Inventory tracked = openGUIs.get(playerId);
+
+        // Only remove if the closing inventory is the one we're tracking
+        if (tracked != null && event.getInventory().equals(tracked)) {
+            openGUIs.remove(playerId);
+            Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " GUI closed and removed from map (remaining: " + openGUIs.size() + ")");
+        } else if (tracked != null) {
+            Bukkit.getLogger().info("[Winter Quest GUI DEBUG] " + player.getName() + " OLD GUI closed but NEW GUI in map - keeping NEW in map");
+        }
+    }
+
+    @EventHandler
+    public void onDrag(InventoryDragEvent event) {
+        UUID playerId = event.getWhoClicked().getUniqueId();
+        Inventory inv = openGUIs.get(playerId);
+        if (inv == null) return;
+
+        // If any of the dragged slots affects our GUI's top inventory, cancel.
+        Inventory top = event.getView().getTopInventory();
+        if (top.equals(inv)) {
+            event.setCancelled(true);
+        }
     }
 
     /**

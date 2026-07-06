@@ -397,12 +397,58 @@ public class EventManager {
     }
 
     /**
-     * Get current day number (based on epoch day).
-     * Returns the number of days since Unix epoch (1970-01-01).
-     * This ensures each real-world day has a unique number.
+     * Get current event day (1..duration_days).
+     * Computed relative to this event's configured duration and end time.
+     * If endTime is set (normal case), we compute the start time as endTime - durationDays*1d
+     * and map now into a 1..durationDays window. If endTime is missing, we fall back to
+     * the current calendar day-of-month clamped to [1, durationDays].
+     *
+     * Day changes at 1 AM instead of midnight to give players time after midnight.
      */
     public int getCurrentDay() {
-        return (int) java.time.LocalDate.now().toEpochDay();
+        // Read duration_days and day_change_hour from config for this event
+        int durationDays = 30;
+        int dayChangeHour = 1; // Default: day changes at 1 AM
+        if (configManager != null) {
+            var eventsSec = configManager.getSection("events");
+            if (eventsSec != null) {
+                var eSec = eventsSec.getConfigurationSection(eventId);
+                if (eSec != null) {
+                    durationDays = Math.max(1, eSec.getInt("duration_days", 30));
+                    dayChangeHour = eSec.getInt("day_change_hour", 1);
+                }
+            }
+        }
+
+        final long ONE_DAY_MS = 86_400_000L;
+        final long HOUR_MS = 3_600_000L;
+        long now = System.currentTimeMillis();
+
+        // Adjust time so day changes at configured hour (default 1 AM) instead of midnight
+        // By subtracting dayChangeHour hours, times between 0:00 and dayChangeHour become "yesterday"
+        long adjustedNow = now - (dayChangeHour * HOUR_MS);
+
+        if (endTime > 0) {
+            // Also adjust the event times for consistency
+            long adjustedEndTime = endTime - (dayChangeHour * HOUR_MS);
+            long startTime = adjustedEndTime - (durationDays * ONE_DAY_MS);
+            long elapsed = adjustedNow - startTime;
+            int day = (int) (elapsed / ONE_DAY_MS) + 1; // 1-based day index
+            if (day < 1) day = 1;
+            if (day > durationDays) day = durationDays;
+            return day;
+        }
+
+        // Fallback: use calendar day with day_change_hour boundary
+        java.time.ZonedDateTime nowTime = java.time.ZonedDateTime.now();
+        // If before day change hour, treat as previous day
+        if (nowTime.getHour() < dayChangeHour) {
+            nowTime = nowTime.minusDays(1);
+        }
+        int dom = nowTime.getDayOfMonth();
+        if (dom < 1) dom = 1;
+        if (dom > durationDays) dom = durationDays;
+        return dom;
     }
 
 }
